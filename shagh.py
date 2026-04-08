@@ -7,10 +7,13 @@ from telegram.constants import ParseMode, ChatType
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.ext import MessageHandler, filters
 import random
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 
 DB_PATH = "bot.db"
-ADMIN_ID = int(os.getenv("ADMIN_ID"))
+ADMIN_ID = os.getenv("ADMIN_ID")
 TOKEN = os.getenv("BOT_TOKEN")
 
 WARNING_MESSAGE = """
@@ -67,7 +70,9 @@ async def reply_same_place(update: Update, text: str):
     await message.reply_text(text, parse_mode=ParseMode.HTML)
 
 
-async def send_in_same_topic(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+async def send_in_same_topic(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, text: str
+):
     chat = update.effective_chat
     if not chat:
         return
@@ -144,8 +149,6 @@ def init_db():
             """
         )
 
-
-
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_users_group_active ON users(group_id, active)"
         )
@@ -157,6 +160,7 @@ def init_db():
         )
 
         conn.commit()
+
 
 def mark_paid(group_id: int, user_id: int):
     now_iso = datetime.now().isoformat(timespec="seconds")
@@ -174,6 +178,7 @@ def mark_paid(group_id: int, user_id: int):
             (user_id, group_id, now_iso),
         )
         conn.commit()
+
 
 async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
@@ -201,73 +206,65 @@ async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚠️ تحذير: إشعاعات الإنجاز مرتفعة جدًا ☢️\n"
             "الدفعة الأولى قاسية… وفي ناس ما استوعبت شو صار فيها 😅\n"
             "استعد… لأن النسخة القديمة منك على وشك الاختفاء 😏",
-
             f"🎯 تم رصد انضمام {mention_html(user.id, user.first_name)} للتحدي 😎🔥\n"
             "الدخول كان سلس… لكن القادم مش رح يكون هيك 👀\n"
             "من الآن، كل خطوة محسوبة وكل يوم عليه رقابة 🔍\n"
             "⚠️ انتبه من إشعاعات الإنجاز ☢️\n"
             "الدفعة الأولى تضرب بدون سابق إنذار 😅\n"
             "وإذا نجوت منها… خلاص دخلت الجد 😏",
-
             f"🔥 تم تسجيل {mention_html(user.id, user.first_name)} ضمن قائمة المقاتلين 😎\n"
             "لا يوجد زر رجوع… ولا وضع راحة 👀\n"
             "البرنامج يبدأ فورًا بدون تسخين 🧠\n"
             "⚠️ إشعاعات الإنجاز في أعلى مستوياتها ☢️\n"
             "الدفعة الأولى كفيلة تغيّر نظام حياتك 😅\n"
             "تابع بحذر… أو لا تتابع أصلاً 😏",
-
             f"🚀 دخول رسمي للمستخدم {mention_html(user.id, user.first_name)} 😎🔥\n"
             "تم نقله إلى بيئة لا تعترف بالتأجيل 👀\n"
             "كل يوم = اختبار جديد 💥\n"
             "⚠️ تحذير: إشعاعات الإنجاز نشطة ☢️\n"
             "الدفعة الأولى تضرب بقوة وما بترحم 😅\n"
             "إذا صمدت… أنت مش طبيعي 😏",
-
             f"👀 تم إدخال {mention_html(user.id, user.first_name)} إلى النظام 😎🔥\n"
             "تم تفعيل وضع الإنجاز التلقائي بدون إذن 😅\n"
             "الراحة أصبحت خيار غير متاح حاليًا 💼\n"
             "⚠️ إشعاعات الإنجاز عالية جدًا ☢️\n"
             "الدفعة الأولى ممكن تسبب إدمان إنتاج 👀\n"
             "لا تقلق… هذا طبيعي هون 😏",
-
             f"⚡ انضم {mention_html(user.id, user.first_name)} رسميًا 😎🔥\n"
             "الدخول سهل… لكن الاستمرار هو التحدي الحقيقي 👀\n"
             "من الآن، كل يوم فيه تقدم إجباري 📈\n"
             "⚠️ انتبه من إشعاعات الإنجاز ☢️\n"
             "الدفعة الأولى بتغيّر كل قواعدك 😅\n"
             "وما رح ترجع زي قبل أبدًا 😏",
-
             f"🎖️ تم ضم {mention_html(user.id, user.first_name)} للنظام 😎🔥\n"
             "تم تفعيل وضع الضغط العالي مباشرة 👀\n"
             "التأجيل صار ممنوع رسميًا 🚫\n"
             "⚠️ إشعاعات الإنجاز شغالة بكامل طاقتها ☢️\n"
             "الدفعة الأولى ما بترحم أي حدا 😅\n"
             "استعد… لأنك داخل مرحلة جديدة 😏",
-
             f"🔥 انضمام جديد: {mention_html(user.id, user.first_name)} 😎🔥\n"
             "تم إدخاله إلى منطقة لا تعرف الكسل 👀\n"
             "الإنجاز هون أسلوب حياة مش خيار 💼\n"
             "⚠️ إشعاعات الإنجاز مرتفعة ☢️\n"
             "الدفعة الأولى صدمة إيجابية قوية 😅\n"
             "رح تفهم لاحقًا ليش 😏",
-
             f"🚨 تم استقبال {mention_html(user.id, user.first_name)} في التحدي 😎🔥\n"
             "تم تفعيل نمط الأداء العالي مباشرة 👀\n"
             "لا يوجد وقت للتفكير… فقط تنفيذ 💥\n"
             "⚠️ تحذير: إشعاعات الإنجاز فعالة ☢️\n"
             "الدفعة الأولى تضرب بسرعة وقوة 😅\n"
             "أهلاً بك في الواقع الجديد 😏",
-
             f"🎯 تم إدخال {mention_html(user.id, user.first_name)} إلى ساحة الإنجاز 😎🔥\n"
             "تم إلغاء خيار الكسل تلقائيًا 👀\n"
             "كل يوم لازم يكون فيه تقدم واضح 📈\n"
             "⚠️ إشعاعات الإنجاز مرتفعة جدًا ☢️\n"
             "الدفعة الأولى كفيلة تعيد تشكيلك 😅\n"
-            "من الآن… الأمور جد 😏"
+            "من الآن… الأمور جد 😏",
         ]
         text = random.choice(texts)
 
         await message.reply_text(text, parse_mode=ParseMode.HTML)
+
 
 def get_payment_status(group_id: int):
     with db_conn() as conn:
@@ -442,7 +439,9 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if already_done:
         await reply_same_place(update, f"✏️ تم تحديث إنجازك اليوم الساعة {time_str}")
     else:
-        await reply_same_place(update, f"🔥 تم تسجيل إنجازك الساعة {time_str} (+1 نقطة)")
+        await reply_same_place(
+            update, f"🔥 تم تسجيل إنجازك الساعة {time_str} (+1 نقطة)"
+        )
 
 
 async def alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -482,7 +481,9 @@ async def alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         done_ids = {row["user_id"] for row in cur.fetchall()}
 
-    missing = [(row["user_id"], row["name"]) for row in users if row["user_id"] not in done_ids]
+    missing = [
+        (row["user_id"], row["name"]) for row in users if row["user_id"] not in done_ids
+    ]
 
     if not missing:
         await send_in_same_topic(update, context, "🎉 الكل سجل اليوم.")
@@ -533,7 +534,11 @@ async def checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         done_rows = cur.fetchall()
 
         done_ids = {row["user_id"] for row in done_rows}
-        missing = [(row["user_id"], row["name"]) for row in users if row["user_id"] not in done_ids]
+        missing = [
+            (row["user_id"], row["name"])
+            for row in users
+            if row["user_id"] not in done_ids
+        ]
 
         done_text = "✅ إنجازات اليوم:\n"
         if done_rows:
@@ -546,7 +551,9 @@ async def checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         missing_text = "\n\n❌ لم يسجلوا اليوم:\n"
         if missing:
-            missing_text += "\n".join(f"- {mention_html(uid, name)}" for uid, name in missing)
+            missing_text += "\n".join(
+                f"- {mention_html(uid, name)}" for uid, name in missing
+            )
         else:
             missing_text += "ولا أحد 🎉"
 
@@ -645,7 +652,9 @@ async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     ok = remove_user_by_username(chat.id, context.args[0])
-    await reply_same_place(update, "✅ تم." if ok else "المستخدم غير موجود في هذه المجموعة.")
+    await reply_same_place(
+        update, "✅ تم." if ok else "المستخدم غير موجود في هذه المجموعة."
+    )
 
 
 async def update_points(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -696,7 +705,9 @@ async def update_points(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         conn.commit()
 
-    await reply_same_place(update, f"✅ تم تحديث نقاط @{html.escape(username)} إلى {new_points}")
+    await reply_same_place(
+        update, f"✅ تم تحديث نقاط @{html.escape(username)} إلى {new_points}"
+    )
 
 
 async def add_points(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -850,7 +861,9 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     replied_user = message.reply_to_message.from_user
     if replied_user and replied_user.is_bot:
-        await message.reply_text("انت فهيم شي؟ 😏 بدك انفذ تبليغ على حالي؟ بتحلم 🤣🤣🔥🤡")
+        await message.reply_text(
+            "انت فهيم شي؟ 😏 بدك انفذ تبليغ على حالي؟ بتحلم 🤣🤣🔥🤡"
+        )
 
 
 async def paid(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -871,46 +884,46 @@ async def paid(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     mark_paid(group_id, user.id)
 
-    await update.message.reply_text(
-        "✅ شكراً لإتمام عملية الدفع، تم تسجيلك بنجاح."
-    )
+    await update.message.reply_text("✅ شكراً لإتمام عملية الدفع، تم تسجيلك بنجاح.")
+
 
 async def list_pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await require_group(update):
-            return
+    if not await require_group(update):
+        return
 
-        user = update.effective_user
-        chat = update.effective_chat
+    user = update.effective_user
+    chat = update.effective_chat
 
-        if not user or not chat or not is_admin(user.id):
-            await reply_same_place(update, "للأدمن فقط.")
-            return
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
 
-        rows = get_payment_status(chat.id)
+    rows = get_payment_status(chat.id)
 
-        if not rows:
-            await reply_same_place(update, "لا يوجد مستخدمين.")
-            return
+    if not rows:
+        await reply_same_place(update, "لا يوجد مستخدمين.")
+        return
 
-        paid = []
-        not_paid = []
+    paid = []
+    not_paid = []
 
-        for row in rows:
-            name = html.escape(row["name"])
-            if row["paid"] == 1:
-                paid.append(name)
-            else:
-                not_paid.append(name)
+    for row in rows:
+        name = html.escape(row["name"])
+        if row["paid"] == 1:
+            paid.append(name)
+        else:
+            not_paid.append(name)
 
-        text = "💰 حالة الدفع\n\n"
+    text = "💰 حالة الدفع\n\n"
 
-        text += "✅ دفعوا:\n"
-        text += "\n".join(f"- {n}" for n in paid) if paid else "لا أحد"
+    text += "✅ دفعوا:\n"
+    text += "\n".join(f"- {n}" for n in paid) if paid else "لا أحد"
 
-        text += "\n\n❌ لم يدفعوا:\n"
-        text += "\n".join(f"- {n}" for n in not_paid) if not_paid else "لا أحد 🎉"
+    text += "\n\n❌ لم يدفعوا:\n"
+    text += "\n".join(f"- {n}" for n in not_paid) if not_paid else "لا أحد 🎉"
 
-        await reply_same_place(update, text)
+    await reply_same_place(update, text)
+
 
 async def promote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -953,6 +966,7 @@ async def promote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
 
     await update.message.reply_text(text)
+
 
 def main():
     if not TOKEN:
