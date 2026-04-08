@@ -993,8 +993,20 @@ def main():
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
-    app.run_polling()
-
+    PORT = int(os.getenv("PORT"))
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+    SECRET_TOKEN = os.getenv("SECRET_TOKEN")
+    if not PORT or not WEBHOOK_URL:
+        app.run_polling()
+    else:
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT, 
+            secret_token=SECRET_TOKEN, 
+            webhook_url=WEBHOOK_URL,
+            drop_pending_updates=True,
+            url_path="shagh-bot",
+        )
 
 if __name__ == "__main__":
     main()
