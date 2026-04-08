@@ -10,8 +10,8 @@ import random
 
 
 DB_PATH = "bot.db"
-ADMIN_ID = 7861055850
-TOKEN = "8258955051:AAF8dSMRtP2D6PxVQHFe8CqPH-IF7BkvzsI"
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
+TOKEN = os.getenv("BOT_TOKEN")
 
 WARNING_MESSAGE = """
 ⚠️ تنبيه مهم بخصوص المتابعة
