@@ -21,12 +21,12 @@ jobs:
       - name: Pull latest code
         run: |
           ssh -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            'cd /home/${{ secrets.SSH_USER }}/baraa-nayyal/shagh-bot && git pull origin main'
+            'cd /home/obaida/baraa-nayyal/shagh-bot && git pull origin main'
 
       - name: Install dependencies
         run: |
           ssh -i ~/.ssh/id_rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            'export PATH="$HOME/.local/bin:$PATH"; cd /home/${{ secrets.SSH_USER }}/baraa-nayyal/shagh-bot && uv pip install -r requirements.txt'
+            'export PATH="/home/obaida/.local/bin:$PATH"; cd /home/obaida/baraa-nayyal/shagh-bot && uv pip install -r requirements.txt'
 
       - name: Restart shagh-bot
         run: |
