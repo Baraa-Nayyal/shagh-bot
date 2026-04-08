@@ -993,12 +993,12 @@ def main():
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
-    PORT = int(os.getenv("PORT"))
     WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-    SECRET_TOKEN = os.getenv("SECRET_TOKEN")
-    if not PORT or not WEBHOOK_URL:
+    if not WEBHOOK_URL:
         app.run_polling()
     else:
+        PORT = int(os.getenv("PORT"))
+        SECRET_TOKEN = os.getenv("SECRET_TOKEN")
         app.run_webhook(
             listen="0.0.0.0",
             port=PORT, 
