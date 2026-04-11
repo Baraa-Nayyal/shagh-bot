@@ -13,7 +13,7 @@ import os
 load_dotenv()
 
 DB_PATH = "bot.db"
-ADMIN_ID = os.getenv("ADMIN_ID")
+ADMIN_ID = "7861055850"
 TOKEN = os.getenv("BOT_TOKEN")
 
 WARNING_MESSAGE = """
