@@ -13,7 +13,7 @@ import os
 load_dotenv()
 
 DB_PATH = "bot.db"
-ADMIN_ID = "7861055850"
+ADMIN_ID = 7861055850
 TOKEN = os.getenv("BOT_TOKEN")
 
 WARNING_MESSAGE = """
@@ -525,7 +525,7 @@ async def checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
             SELECT u.user_id, u.name, d.message, d.done_time
             FROM daily_done d
             JOIN users u
-              ON u.user_id = d.user_id AND u.group_id = d.group_id
+            ON u.user_id = d.user_id AND u.group_id = d.group_id
             WHERE d.group_id = ? AND d.done_date = ? AND u.active = 1
             ORDER BY d.done_time_iso ASC
             """,
