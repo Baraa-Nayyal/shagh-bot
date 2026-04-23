@@ -180,90 +180,90 @@ def mark_paid(group_id: int, user_id: int):
         conn.commit()
 
 
-async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.effective_message
-    chat = update.effective_chat
+# async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     message = update.effective_message
+#     chat = update.effective_chat
 
-    if not message or not chat:
-        return
+#     if not message or not chat:
+#         return
 
-    group_id = chat.id
+#     group_id = chat.id
 
-    for user in message.new_chat_members:
-        ensure_group_registered(group_id, chat.title or "")
+#     for user in message.new_chat_members:
+#         ensure_group_registered(group_id, chat.title or "")
 
-        upsert_user(
-            group_id,
-            user.id,
-            user.username or "",
-            user.first_name or "User",
-        )
+#         upsert_user(
+#             group_id,
+#             user.id,
+#             user.username or "",
+#             user.first_name or "User",
+#         )
 
-        texts = [
-            f"🚨 انضم إلينا {mention_html(user.id, user.first_name)} رسميًا 😎🔥\n"
-            "تم إدخاله مباشرة إلى بيئة عالية الإنتاجية بدون تدريب مسبق 👀\n"
-            "هون ما في تمهيد… الشغل بيبدأ فورًا 💼\n"
-            "⚠️ تحذير: إشعاعات الإنجاز مرتفعة جدًا ☢️\n"
-            "الدفعة الأولى قاسية… وفي ناس ما استوعبت شو صار فيها 😅\n"
-            "استعد… لأن النسخة القديمة منك على وشك الاختفاء 😏",
-            f"🎯 تم رصد انضمام {mention_html(user.id, user.first_name)} للتحدي 😎🔥\n"
-            "الدخول كان سلس… لكن القادم مش رح يكون هيك 👀\n"
-            "من الآن، كل خطوة محسوبة وكل يوم عليه رقابة 🔍\n"
-            "⚠️ انتبه من إشعاعات الإنجاز ☢️\n"
-            "الدفعة الأولى تضرب بدون سابق إنذار 😅\n"
-            "وإذا نجوت منها… خلاص دخلت الجد 😏",
-            f"🔥 تم تسجيل {mention_html(user.id, user.first_name)} ضمن قائمة المقاتلين 😎\n"
-            "لا يوجد زر رجوع… ولا وضع راحة 👀\n"
-            "البرنامج يبدأ فورًا بدون تسخين 🧠\n"
-            "⚠️ إشعاعات الإنجاز في أعلى مستوياتها ☢️\n"
-            "الدفعة الأولى كفيلة تغيّر نظام حياتك 😅\n"
-            "تابع بحذر… أو لا تتابع أصلاً 😏",
-            f"🚀 دخول رسمي للمستخدم {mention_html(user.id, user.first_name)} 😎🔥\n"
-            "تم نقله إلى بيئة لا تعترف بالتأجيل 👀\n"
-            "كل يوم = اختبار جديد 💥\n"
-            "⚠️ تحذير: إشعاعات الإنجاز نشطة ☢️\n"
-            "الدفعة الأولى تضرب بقوة وما بترحم 😅\n"
-            "إذا صمدت… أنت مش طبيعي 😏",
-            f"👀 تم إدخال {mention_html(user.id, user.first_name)} إلى النظام 😎🔥\n"
-            "تم تفعيل وضع الإنجاز التلقائي بدون إذن 😅\n"
-            "الراحة أصبحت خيار غير متاح حاليًا 💼\n"
-            "⚠️ إشعاعات الإنجاز عالية جدًا ☢️\n"
-            "الدفعة الأولى ممكن تسبب إدمان إنتاج 👀\n"
-            "لا تقلق… هذا طبيعي هون 😏",
-            f"⚡ انضم {mention_html(user.id, user.first_name)} رسميًا 😎🔥\n"
-            "الدخول سهل… لكن الاستمرار هو التحدي الحقيقي 👀\n"
-            "من الآن، كل يوم فيه تقدم إجباري 📈\n"
-            "⚠️ انتبه من إشعاعات الإنجاز ☢️\n"
-            "الدفعة الأولى بتغيّر كل قواعدك 😅\n"
-            "وما رح ترجع زي قبل أبدًا 😏",
-            f"🎖️ تم ضم {mention_html(user.id, user.first_name)} للنظام 😎🔥\n"
-            "تم تفعيل وضع الضغط العالي مباشرة 👀\n"
-            "التأجيل صار ممنوع رسميًا 🚫\n"
-            "⚠️ إشعاعات الإنجاز شغالة بكامل طاقتها ☢️\n"
-            "الدفعة الأولى ما بترحم أي حدا 😅\n"
-            "استعد… لأنك داخل مرحلة جديدة 😏",
-            f"🔥 انضمام جديد: {mention_html(user.id, user.first_name)} 😎🔥\n"
-            "تم إدخاله إلى منطقة لا تعرف الكسل 👀\n"
-            "الإنجاز هون أسلوب حياة مش خيار 💼\n"
-            "⚠️ إشعاعات الإنجاز مرتفعة ☢️\n"
-            "الدفعة الأولى صدمة إيجابية قوية 😅\n"
-            "رح تفهم لاحقًا ليش 😏",
-            f"🚨 تم استقبال {mention_html(user.id, user.first_name)} في التحدي 😎🔥\n"
-            "تم تفعيل نمط الأداء العالي مباشرة 👀\n"
-            "لا يوجد وقت للتفكير… فقط تنفيذ 💥\n"
-            "⚠️ تحذير: إشعاعات الإنجاز فعالة ☢️\n"
-            "الدفعة الأولى تضرب بسرعة وقوة 😅\n"
-            "أهلاً بك في الواقع الجديد 😏",
-            f"🎯 تم إدخال {mention_html(user.id, user.first_name)} إلى ساحة الإنجاز 😎🔥\n"
-            "تم إلغاء خيار الكسل تلقائيًا 👀\n"
-            "كل يوم لازم يكون فيه تقدم واضح 📈\n"
-            "⚠️ إشعاعات الإنجاز مرتفعة جدًا ☢️\n"
-            "الدفعة الأولى كفيلة تعيد تشكيلك 😅\n"
-            "من الآن… الأمور جد 😏",
-        ]
-        text = random.choice(texts)
+#         texts = [
+#             f"🚨 انضم إلينا {mention_html(user.id, user.first_name)} رسميًا 😎🔥\n"
+#             "تم إدخاله مباشرة إلى بيئة عالية الإنتاجية بدون تدريب مسبق 👀\n"
+#             "هون ما في تمهيد… الشغل بيبدأ فورًا 💼\n"
+#             "⚠️ تحذير: إشعاعات الإنجاز مرتفعة جدًا ☢️\n"
+#             "الدفعة الأولى قاسية… وفي ناس ما استوعبت شو صار فيها 😅\n"
+#             "استعد… لأن النسخة القديمة منك على وشك الاختفاء 😏",
+#             f"🎯 تم رصد انضمام {mention_html(user.id, user.first_name)} للتحدي 😎🔥\n"
+#             "الدخول كان سلس… لكن القادم مش رح يكون هيك 👀\n"
+#             "من الآن، كل خطوة محسوبة وكل يوم عليه رقابة 🔍\n"
+#             "⚠️ انتبه من إشعاعات الإنجاز ☢️\n"
+#             "الدفعة الأولى تضرب بدون سابق إنذار 😅\n"
+#             "وإذا نجوت منها… خلاص دخلت الجد 😏",
+#             f"🔥 تم تسجيل {mention_html(user.id, user.first_name)} ضمن قائمة المقاتلين 😎\n"
+#             "لا يوجد زر رجوع… ولا وضع راحة 👀\n"
+#             "البرنامج يبدأ فورًا بدون تسخين 🧠\n"
+#             "⚠️ إشعاعات الإنجاز في أعلى مستوياتها ☢️\n"
+#             "الدفعة الأولى كفيلة تغيّر نظام حياتك 😅\n"
+#             "تابع بحذر… أو لا تتابع أصلاً 😏",
+#             f"🚀 دخول رسمي للمستخدم {mention_html(user.id, user.first_name)} 😎🔥\n"
+#             "تم نقله إلى بيئة لا تعترف بالتأجيل 👀\n"
+#             "كل يوم = اختبار جديد 💥\n"
+#             "⚠️ تحذير: إشعاعات الإنجاز نشطة ☢️\n"
+#             "الدفعة الأولى تضرب بقوة وما بترحم 😅\n"
+#             "إذا صمدت… أنت مش طبيعي 😏",
+#             f"👀 تم إدخال {mention_html(user.id, user.first_name)} إلى النظام 😎🔥\n"
+#             "تم تفعيل وضع الإنجاز التلقائي بدون إذن 😅\n"
+#             "الراحة أصبحت خيار غير متاح حاليًا 💼\n"
+#             "⚠️ إشعاعات الإنجاز عالية جدًا ☢️\n"
+#             "الدفعة الأولى ممكن تسبب إدمان إنتاج 👀\n"
+#             "لا تقلق… هذا طبيعي هون 😏",
+#             f"⚡ انضم {mention_html(user.id, user.first_name)} رسميًا 😎🔥\n"
+#             "الدخول سهل… لكن الاستمرار هو التحدي الحقيقي 👀\n"
+#             "من الآن، كل يوم فيه تقدم إجباري 📈\n"
+#             "⚠️ انتبه من إشعاعات الإنجاز ☢️\n"
+#             "الدفعة الأولى بتغيّر كل قواعدك 😅\n"
+#             "وما رح ترجع زي قبل أبدًا 😏",
+#             f"🎖️ تم ضم {mention_html(user.id, user.first_name)} للنظام 😎🔥\n"
+#             "تم تفعيل وضع الضغط العالي مباشرة 👀\n"
+#             "التأجيل صار ممنوع رسميًا 🚫\n"
+#             "⚠️ إشعاعات الإنجاز شغالة بكامل طاقتها ☢️\n"
+#             "الدفعة الأولى ما بترحم أي حدا 😅\n"
+#             "استعد… لأنك داخل مرحلة جديدة 😏",
+#             f"🔥 انضمام جديد: {mention_html(user.id, user.first_name)} 😎🔥\n"
+#             "تم إدخاله إلى منطقة لا تعرف الكسل 👀\n"
+#             "الإنجاز هون أسلوب حياة مش خيار 💼\n"
+#             "⚠️ إشعاعات الإنجاز مرتفعة ☢️\n"
+#             "الدفعة الأولى صدمة إيجابية قوية 😅\n"
+#             "رح تفهم لاحقًا ليش 😏",
+#             f"🚨 تم استقبال {mention_html(user.id, user.first_name)} في التحدي 😎🔥\n"
+#             "تم تفعيل نمط الأداء العالي مباشرة 👀\n"
+#             "لا يوجد وقت للتفكير… فقط تنفيذ 💥\n"
+#             "⚠️ تحذير: إشعاعات الإنجاز فعالة ☢️\n"
+#             "الدفعة الأولى تضرب بسرعة وقوة 😅\n"
+#             "أهلاً بك في الواقع الجديد 😏",
+#             f"🎯 تم إدخال {mention_html(user.id, user.first_name)} إلى ساحة الإنجاز 😎🔥\n"
+#             "تم إلغاء خيار الكسل تلقائيًا 👀\n"
+#             "كل يوم لازم يكون فيه تقدم واضح 📈\n"
+#             "⚠️ إشعاعات الإنجاز مرتفعة جدًا ☢️\n"
+#             "الدفعة الأولى كفيلة تعيد تشكيلك 😅\n"
+#             "من الآن… الأمور جد 😏",
+#         ]
+#         text = random.choice(texts)
 
-        await message.reply_text(text, parse_mode=ParseMode.HTML)
+#         await message.reply_text(text, parse_mode=ParseMode.HTML)
 
 
 def get_payment_status(group_id: int):
@@ -968,6 +968,49 @@ async def promote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text)
 
 
+async def welcome_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    text = """
+    👋 مرحبااا بالشغوفين واهلاً فيكن 🔥😎
+
+    🤖 أنا مساعد شغوف مهمتي:
+    تسجيل إنجازاتكم اليومية 📌
+    وتوثيقها لحتى نأرشف التقدم خطوة بخطوة 🚀
+
+    ━━━━━━━━━━━━━━
+
+    🧠 كيف تستخدموني؟
+
+    1️⃣ أول خطوة:
+    استخدم /register
+    حتى تسجل حالك بالنظام ✅
+
+    2️⃣ كل يوم:
+    روح على قناة الإنجاز 📍
+    وابعت إنجازك باستخدام:
+    👉 /done شو اشتغلت اليوم
+
+    📌 مثال:
+    /done خلصت تصميم الصفحة الرئيسية
+
+    3️⃣ التوثيق:
+    بيكون بنهاية اليوم ⏰
+    يعني لا تأجل… خلص يومك وسجّل إنجازك 🔥
+
+    ━━━━━━━━━━━━━━
+
+    ⚠️ تذكير بسيط:
+    الالتزام اليومي هو الفرق بين شخص عم يتطور…
+    وشخص بس عم يحكي 😏
+
+    يلا خلينا نشتغل 💪🔥
+    """.strip()
+
+    await reply_same_place(update, text)
+
+
 def main():
     if not TOKEN:
         raise RuntimeError("Set TOKEN environment variable")
@@ -990,6 +1033,7 @@ def main():
     app.add_handler(CommandHandler("promote", promote))
     app.add_handler(CommandHandler("paid", paid))
     app.add_handler(CommandHandler("listPay", list_pay))
+    app.add_handler(CommandHandler("welcome", welcome_cmd))
     # app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
