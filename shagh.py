@@ -95,18 +95,15 @@ def init_db():
     with db_conn() as conn:
         cur = conn.cursor()
 
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS groups_data (
                 group_id INTEGER PRIMARY KEY,
                 title TEXT,
                 registered_at TEXT NOT NULL
             )
-            """
-        )
+            """)
 
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER NOT NULL,
                 group_id INTEGER NOT NULL,
@@ -118,11 +115,9 @@ def init_db():
                 PRIMARY KEY (user_id, group_id),
                 FOREIGN KEY (group_id) REFERENCES groups_data(group_id) ON DELETE CASCADE
             )
-            """
-        )
+            """)
 
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS daily_done (
                 user_id INTEGER NOT NULL,
                 group_id INTEGER NOT NULL,
@@ -133,11 +128,9 @@ def init_db():
                 PRIMARY KEY (user_id, group_id, done_date),
                 FOREIGN KEY (user_id, group_id) REFERENCES users(user_id, group_id) ON DELETE CASCADE
             )
-            """
-        )
+            """)
 
-        cur.execute(
-            """
+        cur.execute("""
              CREATE TABLE IF NOT EXISTS payments (
                 user_id INTEGER NOT NULL,
                 group_id INTEGER NOT NULL,
@@ -146,8 +139,7 @@ def init_db():
                 PRIMARY KEY (user_id, group_id),
                 FOREIGN KEY (user_id, group_id) REFERENCES users(user_id, group_id) ON DELETE CASCADE
              )
-            """
-        )
+            """)
 
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_users_group_active ON users(group_id, active)"
@@ -403,18 +395,31 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     time_str = now.strftime("%I:%M %p").lstrip("0")
     now_iso = now.isoformat(timespec="seconds")
 
+    done_replies = [
+        "كفو الإنجاز وهي أحلى نقطة 🔥",
+        "كيف عايش حياتك طبيعي بعد هيك إنجاز؟ تفضل نقطتك 😎",
+        "تم تسجيل إنجاز خارق للشغوف، بتحصل على نقطتك من البنك المركزي 🏦🔥",
+        "الإنجاز وصلنا، والنقطة انطلقت باتجاهك بسرعة الضوء 🚀",
+        "واضح في شخص قرر يجلد التسويف اليوم… خذ نقطتك يا وحش 💪",
+        "تم رصد إنجاز محترم جدًا، النظام صفق لحاله 👏🔥",
+        "يا سلام… إنجازك دخل التاريخ المحلي للمجموعة 😌✨",
+        "النقطة وصلت، والتأجيل يبكي في الزاوية 😭✅",
+        "هيك الشغل الصح… إنجاز مرتب ونقطة مستحقة 😎",
+        "تم اعتماد الإنجاز رسميًا من وزارة الشغف والجلد الذاتي 📝🔥",
+        "يا ساتر على الإنتاجية… خذ نقطتك قبل ما نحسدك 👀",
+        "إنجازك اليوم عامل قلق في سوق الكسل العالمي 📉😂",
+        "تم تسجيل الإنجاز بنجاح… الكمبيوتر قال: كفو 🤖🔥",
+        "نقطة جديدة في الحساب، وهيبة جديدة في المجموعة 😌🏆",
+        "واضح إنك داخل مود الوحش اليوم… نقطة وبكل احترام 🐺🔥",
+        "الإنجاز مقبول، الأداء مرعب، والنقطة بالطريق ✅🚀",
+        "تمت إضافة نقطة لأنك رفضت تكون NPC اليوم 🎮🔥",
+        "يا كبير… إنجازك وصل قبل القهوة حتى ☕😎",
+        "النظام حاول يتأكد من الإنجاز مرتين من قوته 😂🔥",
+        "تم تسجيل إنجازك، والتسويف أخذ حظر مؤقت 🚫😏",
+    ]
+
     with db_conn() as conn:
         cur = conn.cursor()
-
-        cur.execute(
-            """
-            SELECT 1
-            FROM daily_done
-            WHERE user_id = ? AND group_id = ? AND done_date = ?
-            """,
-            (user.id, group_id, today),
-        )
-        already_done = cur.fetchone() is not None
 
         cur.execute(
             """
@@ -428,20 +433,14 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
             (user.id, group_id, today, msg, time_str, now_iso),
         )
 
-        if not already_done:
-            cur.execute(
-                "UPDATE users SET points = points + 1 WHERE user_id = ? AND group_id = ?",
-                (user.id, group_id),
-            )
+        cur.execute(
+            "UPDATE users SET points = points + 1 WHERE user_id = ? AND group_id = ?",
+            (user.id, group_id),
+        )
 
         conn.commit()
 
-    if already_done:
-        await reply_same_place(update, f"✏️ تم تحديث إنجازك اليوم الساعة {time_str}")
-    else:
-        await reply_same_place(
-            update, f"🔥 تم تسجيل إنجازك الساعة {time_str} (+1 نقطة)"
-        )
+    await reply_same_place(update, random.choice(done_replies))
 
 
 async def alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
