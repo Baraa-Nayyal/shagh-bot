@@ -118,6 +118,19 @@ def init_db():
             """)
 
         cur.execute("""
+        CREATE TABLE IF NOT EXISTS activity_done (
+            user_id INTEGER NOT NULL,
+            group_id INTEGER NOT NULL,
+            activity_type TEXT NOT NULL,
+            done_date TEXT NOT NULL,
+            message TEXT NOT NULL,
+            done_time TEXT NOT NULL,
+            done_time_iso TEXT NOT NULL,
+            PRIMARY KEY (user_id, group_id, activity_type, done_date)
+            )
+        """)
+
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS daily_done (
                 user_id INTEGER NOT NULL,
                 group_id INTEGER NOT NULL,
@@ -1007,6 +1020,120 @@ async def welcome_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply_same_place(update, text)
 
 
+ACTIVITY_CONFIG = {
+    "study": {
+        "points": 1,
+        "label": "دراسة",
+        "no_message": "اكتب وش درست بعد الأمر.",
+        "already_done": "تم تحديث نشاط الدراسة بنجاح ✅",
+        "replies": [
+            "زبدة 📚 +1 نقطة انسجلت لك على الدراسة",
+            "تمام 🧠 نقطة جديدة، كمّل كذا",
+        ],
+    },
+    "meeting": {
+        "points": 3,
+        "label": "اجتماع",
+        "no_message": "اكتب تفاصيل الاجتماع بعد الأمر.",
+        "already_done": "تم تحديث الاجتماع بنجاح ✅",
+        "replies": [
+            "تمام 🤝 +3 نقاط عن الاجتماع",
+            "قوي 💼 نقاط الاجتماع انسجلت",
+        ],
+    },
+    "project": {
+        "points": 5,
+        "label": "مشروع",
+        "no_message": "اكتب تفاصيل المشروع بعد الأمر.",
+        "already_done": "تم تحديث المشروع بنجاح ✅",
+        "replies": [
+            "🔥 +5 نقاط عن شغل المشروع، عمل ممتاز",
+            "قوي جدًا 🚀 نقاط المشروع انسجلت",
+        ],
+    },
+}
+
+
+async def log_activity(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, activity_type: str
+):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat:
+        return
+
+    group_id = chat.id
+    config = ACTIVITY_CONFIG[activity_type]
+
+    if not get_user_active(group_id, user.id):
+        await reply_same_place(update, "استخدم /register أولاً داخل هذه المجموعة.")
+        return
+
+    msg = " ".join(context.args).strip()
+    if not msg:
+        await reply_same_place(update, config["no_message"])
+        return
+
+    today = str(date.today())
+    now = datetime.now()
+    time_str = now.strftime("%I:%M %p").lstrip("0")
+    now_iso = now.isoformat(timespec="seconds")
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            SELECT 1
+            FROM activity_done
+            WHERE user_id = ? AND group_id = ? AND activity_type = ? AND done_date = ?
+            """,
+            (user.id, group_id, activity_type, today),
+        )
+
+        already_done = cur.fetchone() is not None
+
+        cur.execute(
+            """
+            INSERT INTO activity_done (user_id, group_id, activity_type, done_date, message, done_time, done_time_iso)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, group_id, activity_type, done_date) DO UPDATE SET
+                message = excluded.message,
+                done_time = excluded.done_time,
+                done_time_iso = excluded.done_time_iso
+            """,
+            (user.id, group_id, activity_type, today, msg, time_str, now_iso),
+        )
+
+        if not already_done:
+            cur.execute(
+                "UPDATE users SET points = points + ? WHERE user_id = ? AND group_id = ?",
+                (config["points"], user.id, group_id),
+            )
+
+        conn.commit()
+
+    if already_done:
+        await reply_same_place(update, config["already_done"])
+    else:
+        await reply_same_place(update, random.choice(config["replies"]))
+
+
+async def study(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await log_activity(update, context, "study")
+
+
+async def meeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await log_activity(update, context, "meeting")
+
+
+async def project(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await log_activity(update, context, "project")
+
+
 def main():
     if not TOKEN:
         raise RuntimeError("Set TOKEN environment variable")
@@ -1030,6 +1157,9 @@ def main():
     app.add_handler(CommandHandler("paid", paid))
     app.add_handler(CommandHandler("listPay", list_pay))
     app.add_handler(CommandHandler("welcome", welcome_cmd))
+    app.add_handler(CommandHandler("study", study))
+    app.add_handler(CommandHandler("meeting", meeting))
+    app.add_handler(CommandHandler("project", project))
     # app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
