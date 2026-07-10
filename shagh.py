@@ -940,38 +940,45 @@ async def promote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(user.id):
         return
 
-    if not update.message.reply_to_message:
-        await update.message.reply_text("رد على رسالة المستخدم ثم استخدم /promot")
-        return
+    target = None
 
-    target = update.message.reply_to_message.from_user
+    if update.message.reply_to_message:
+        target = update.message.reply_to_message.from_user
+
+    elif context.args:
+        username = context.args[0].replace("@", "")
+
+        members = await update.effective_chat.get_member_by_username(username)
+        if members:
+            target = members.user
+
+    if not target:
+        await update.message.reply_text(
+            "رد على رسالة المستخدم أو استخدم /promote @username"
+        )
+        return
 
     username = f"@{target.username}" if target.username else target.first_name
 
     text = f"""
-    🎖️ قرار إداري عاجل
+    🏆 قرار تكريمي مميز
 
-    تمت ترقية المستخدم {username} إلى رتبة
-    🎧 الناجي من دروس الزيرو 🎧
+    تم منح المستخدم {username} وسام
+    🔥 المقاتل الجريء في طريق النجاح 🔥
 
-    ومن مهام هذا المنصب النبيل:
-    • تحمّل صوت أسامة الزيرو لساعات بدون ما ينهار 😅
-    • تطبيق كل درس عملياً رغم الضغط النفسي والتراكم 👀
-    • الاستمرار حتى النهاية وكأن الموضوع تحدي شخصي 🔥
+    وذلك تقديراً لـ:
+    • حضوره الفعّال ومشاركته في الاجتماع بكل ثقة 💪
+    • خروجه من منطقة الراحة وتجربة أول مقابلة عمل وهمية 👀
+    • إثباته أن الجرأة والتجربة هي أول خطوة نحو الاحتراف 🚀
 
-    وغالباً يكون صاحب هذا المنصب
-    الشخص اللي أول ما يسمع "معاكم أخوكم..."
-    يدخل مود التركيز مباشرة 😎
+    نفتخر بإصرارك،
+    وشجاعتك في مواجهة التحديات،
+    ورغبتك الحقيقية في تطوير نفسك 👏
 
-    نشكر صبرك الحديدي،
-    وقوة تحمّلك،
-    وإصرارك على التعلم رغم كل الظروف 👏
+    🏅 وسام: "أول خطوة نحو الاحتراف"
 
-    ويمكنك استلام وسام "Level Up بالصبر"
-    من تحت الساعة بعد إنهاء آخر فيديو ⏰
-
-    ⚠️ ملاحظة: هذا المنصب رمزي وفكاهي
-    لكن قدرتك على التحمل أسطورية فعلاً 😏
+    ⚠️ ملاحظة: هذه رتبة رمزية،
+    لكن الإنجاز الحقيقي هو أنك بدأت الطريق بثقة 🔥
     """
 
     await update.message.reply_text(text)
