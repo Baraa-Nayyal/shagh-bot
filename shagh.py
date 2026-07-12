@@ -104,6 +104,13 @@ def init_db():
             """)
 
         cur.execute("""
+            CREATE TABLE IF NOT EXISTS group_settings (
+                group_id INTEGER PRIMARY KEY,
+                paused INTEGER NOT NULL DEFAULT 0
+            )
+            """)
+
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER NOT NULL,
                 group_id INTEGER NOT NULL,
@@ -271,6 +278,31 @@ def mark_paid(group_id: int, user_id: int):
 #         await message.reply_text(text, parse_mode=ParseMode.HTML)
 
 
+def is_paused(group_id: int) -> bool:
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT paused FROM group_settings WHERE group_id = ?",
+            (group_id,),
+        )
+        row = cur.fetchone()
+        return bool(row["paused"]) if row else False
+
+
+def set_paused(group_id: int, paused: bool):
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO group_settings (group_id, paused)
+            VALUES (?, ?)
+            ON CONFLICT(group_id) DO UPDATE SET paused = excluded.paused
+            """,
+            (group_id, int(paused)),
+        )
+        conn.commit()
+
+
 def get_payment_status(group_id: int):
     with db_conn() as conn:
         cur = conn.cursor()
@@ -386,13 +418,16 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
         return
-
     user = update.effective_user
     chat = update.effective_chat
     if not user or not chat:
         return
 
     group_id = chat.id
+
+    if is_paused(group_id):
+        await reply_same_place(update, "تسجيل الإنجازات متوقف لهذه الدفعة ⏸️")
+        return
 
     if not get_user_active(group_id, user.id):
         await reply_same_place(update, "استخدم /register أولاً داخل هذه المجموعة.")
@@ -1073,6 +1108,11 @@ async def log_activity(
         return
 
     group_id = chat.id
+
+    if is_paused(group_id):
+        await reply_same_place(update, "تسجيل الإنجازات متوقف لهذه الدفعة ⏸️")
+        return
+
     config = ACTIVITY_CONFIG[activity_type]
 
     if not get_user_active(group_id, user.id):
@@ -1141,6 +1181,26 @@ async def project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await log_activity(update, context, "project")
 
 
+async def pause(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
+
+    group_id = chat.id
+    currently_paused = is_paused(group_id)
+    set_paused(group_id, not currently_paused)
+
+    if currently_paused:
+        await reply_same_place(update, "تم استئناف تسجيل الإنجازات ✅")
+    else:
+        await reply_same_place(update, "تم إيقاف تسجيل الإنجازات ⏸️")
+
+
 def main():
     if not TOKEN:
         raise RuntimeError("Set TOKEN environment variable")
@@ -1167,6 +1227,7 @@ def main():
     app.add_handler(CommandHandler("study", study))
     app.add_handler(CommandHandler("meeting", meeting))
     app.add_handler(CommandHandler("project", project))
+    app.add_handler(CommandHandler("pause", pause))
     # app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
