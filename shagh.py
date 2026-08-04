@@ -16,6 +16,9 @@ DB_PATH = "bot.db"
 ADMIN_IDS = {7861055850, 6621235954}
 TOKEN = os.getenv("BOT_TOKEN")
 
+pending_resets = {}  # group_id -> datetime when /reset_group was requested
+RESET_CONFIRM_WINDOW_SECONDS = 60
+
 WARNING_MESSAGE = """
 ⚠️ تنبيه مهم بخصوص المتابعة
 
@@ -1207,6 +1210,63 @@ async def pause(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reply_same_place(update, "تم إيقاف تسجيل الإنجازات ⏸️")
 
 
+async def reset_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
+
+    group_id = chat.id
+    pending_resets[group_id] = datetime.now()
+
+    await reply_same_place(
+        update,
+        "⚠️ هذا سيحذف جميع بيانات المجموعة نهائيًا (المستخدمين، النقاط، سجل الإنجازات، الإعدادات).\n"
+        f"للتأكيد اكتب /confirm_reset خلال {RESET_CONFIRM_WINDOW_SECONDS} ثانية.",
+    )
+
+
+async def confirm_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
+
+    group_id = chat.id
+    requested_at = pending_resets.get(group_id)
+
+    if (
+        not requested_at
+        or (datetime.now() - requested_at).total_seconds()
+        > RESET_CONFIRM_WINDOW_SECONDS
+    ):
+        await reply_same_place(
+            update, "لا يوجد طلب حذف نشط. استخدم /reset_group أولاً."
+        )
+        return
+
+    del pending_resets[group_id]
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM users WHERE group_id = ?", (group_id,))
+        cur.execute("DELETE FROM daily_done WHERE group_id = ?", (group_id,))
+        cur.execute("DELETE FROM activity_done WHERE group_id = ?", (group_id,))
+        cur.execute("DELETE FROM group_settings WHERE group_id = ?", (group_id,))
+        cur.execute("DELETE FROM groups_data WHERE group_id = ?", (group_id,))
+        conn.commit()
+
+    await reply_same_place(update, "تم حذف جميع بيانات المجموعة بنجاح 🗑️")
+
+
 def main():
     if not TOKEN:
         raise RuntimeError("Set TOKEN environment variable")
@@ -1234,6 +1294,8 @@ def main():
     app.add_handler(CommandHandler("meeting", meeting))
     app.add_handler(CommandHandler("project", project))
     app.add_handler(CommandHandler("pause", pause))
+    app.add_handler(CommandHandler("reset_group", reset_group))
+    app.add_handler(CommandHandler("confirm_reset", confirm_reset))
     # app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
