@@ -13,7 +13,7 @@ import os
 load_dotenv()
 
 DB_PATH = "bot.db"
-ADMIN_IDS = {7861055850, 6621235954}
+ADMIN_IDS = {7861055850, 6621235954, 5956304322}
 TOKEN = os.getenv("BOT_TOKEN")
 
 pending_resets = {}  # group_id -> datetime when /reset_group was requested
