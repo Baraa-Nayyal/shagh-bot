@@ -164,6 +164,17 @@ def init_db():
              )
             """)
 
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS reviews (
+                review_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                group_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL
+             )
+            """)
+
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_users_group_active ON users(group_id, active)"
         )
@@ -1267,6 +1278,126 @@ async def confirm_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply_same_place(update, "تم حذف جميع بيانات المجموعة بنجاح 🗑️")
 
 
+async def review(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat:
+        return
+
+    group_id = chat.id
+    msg = " ".join(context.args).strip()
+    if not msg:
+        await reply_same_place(update, "اكتب ملاحظتك بعد الأمر، مثال:\n/review الإدارة بطيئة شوي")
+        return
+
+    now_iso = datetime.now().isoformat(timespec="seconds")
+    name = user.full_name or user.first_name or "مستخدم"
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO reviews (user_id, group_id, name, message, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user.id, group_id, name, msg, now_iso),
+        )
+        conn.commit()
+
+    await reply_same_place(update, "تم استلام ملاحظتك، شكرًا لك 🙏")
+
+async def show_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    chat = update.effective_chat
+    if not chat:
+        return
+
+    group_id = chat.id
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT message FROM reviews WHERE group_id = ? ORDER BY created_at ASC",
+            (group_id,),
+        )
+        rows = cur.fetchall()
+
+    if not rows:
+        await reply_same_place(update, "📭 ما في ملاحظات لهذه المجموعة بعد.")
+        return
+
+    text = "📝 آراء وملاحظات المجموعة\n━━━━━━━━━━━━━━\n\n"
+    for i, row in enumerate(rows, start=1):
+        text += f"🔸 {i}. {html.escape(row['message'])}\n\n"
+
+    await send_in_same_topic(update, context, text)
+
+
+
+async def reveal_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
+
+    group_id = chat.id
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT user_id, name, message, created_at
+            FROM reviews
+            WHERE group_id = ?
+            ORDER BY created_at ASC
+            """,
+            (group_id,),
+        )
+        rows = cur.fetchall()
+
+    if not rows:
+        await reply_same_place(update, "📭 ما في ملاحظات لهذه المجموعة بعد.")
+        return
+
+    text = "🔍 الملاحظات (مع الأسماء) — للأدمن فقط\n━━━━━━━━━━━━━━\n\n"
+    for i, row in enumerate(rows, start=1):
+        text += f"{i}. {mention_html(row['user_id'], row['name'])}\n{html.escape(row['message'])}\n\n"
+
+    await send_in_same_topic(update, context, text)
+
+async def clear_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not await require_group(update):
+            return
+
+        user = update.effective_user
+        chat = update.effective_chat
+        if not user or not chat or not is_admin(user.id):
+            await reply_same_place(update, "للأدمن فقط.")
+            return
+
+        group_id = chat.id
+
+        with db_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM reviews WHERE group_id = ?", (group_id,))
+            deleted_count = cur.rowcount
+            conn.commit()
+
+        if deleted_count:
+            await reply_same_place(update, f"تم حذف {deleted_count} ملاحظة 🗑️")
+        else:
+            await reply_same_place(update, "ما في ملاحظات لحذفها.")
+
+
 def main():
     if not TOKEN:
         raise RuntimeError("Set TOKEN environment variable")
@@ -1296,6 +1427,10 @@ def main():
     app.add_handler(CommandHandler("pause", pause))
     app.add_handler(CommandHandler("reset_group", reset_group))
     app.add_handler(CommandHandler("confirm_reset", confirm_reset))
+    app.add_handler(CommandHandler("review", review))
+    app.add_handler(CommandHandler("show_reviews", show_reviews))
+    app.add_handler(CommandHandler("reveal_reviews", reveal_reviews))   
+    app.add_handler(CommandHandler("clear_reviews", clear_reviews))
     # app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
