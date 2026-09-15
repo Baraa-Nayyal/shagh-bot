@@ -1408,15 +1408,14 @@ async def clear_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await reply_same_place(update, f"تم حذف {deleted_count} ملاحظة 🗑️")
         else:
             await reply_same_place(update, "ما في ملاحظات لحذفها.")
-
-
 async def project_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
         return
 
     user = update.effective_user
     chat = update.effective_chat
-    if not user or not chat:
+    message = update.message
+    if not user or not chat or not message or not message.text:
         return
 
     group_id = chat.id
@@ -1425,35 +1424,59 @@ async def project_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reply_same_place(update, "استخدم /register أولاً داخل هذه المجموعة.")
         return
 
-    if not context.args:
+    # Strip the command itself, keep everything after it (including newlines)
+    raw = message.text.split(None, 1)
+    body = raw[1] if len(raw) > 1 else ""
+
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+
+    if not lines:
         await reply_same_place(
             update,
-            "أرسل الرابط ثم الوصف بعد الأمر، مثال:\n/project_link https://github.com/me/app وصف قصير للمشروع",
+            "أرسل كل مشروع بسطر منفصل، رابط ثم وصف، مثال:\n"
+            "/project_link\n"
+            "https://github.com/me/app1 وصف المشروع الأول\n"
+            "https://github.com/me/app2 وصف المشروع الثاني",
         )
-        return
-
-    link = context.args[0]
-    description = " ".join(context.args[1:]).strip()
-
-    if not description:
-        await reply_same_place(update, "لازم تكتب وصف قصير للمشروع بعد الرابط.")
         return
 
     now_iso = datetime.now().isoformat(timespec="seconds")
     name = user.full_name or user.first_name or "مستخدم"
 
+    rows_to_insert = []
+    skipped = 0
+
+    for line in lines:
+        parts = line.split(None, 1)
+        if len(parts) < 2:
+            skipped += 1
+            continue
+        link, description = parts[0], parts[1].strip()
+        if not description:
+            skipped += 1
+            continue
+        rows_to_insert.append((user.id, group_id, name, link, description, now_iso))
+
+    if not rows_to_insert:
+        await reply_same_place(update, "ما قدرت أفهم أي سطر، تأكد من كتابة الرابط ثم الوصف بكل سطر.")
+        return
+
     with db_conn() as conn:
         cur = conn.cursor()
-        cur.execute(
+        cur.executemany(
             """
             INSERT INTO projects (user_id, group_id, name, link, description, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (user.id, group_id, name, link, description, now_iso),
+            rows_to_insert,
         )
         conn.commit()
 
-    await reply_same_place(update, "تم استلام مشروعك بنجاح ✅")
+    reply = f"تم استلام {len(rows_to_insert)} مشروع بنجاح ✅"
+    if skipped:
+        reply += f"\n(تم تجاهل {skipped} سطر لعدم وضوح الرابط أو الوصف)"
+
+    await reply_same_place(update, reply)
 
 async def show_projects(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
@@ -1484,15 +1507,92 @@ async def show_projects(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reply_same_place(update, "📭 ما في مشاريع مسجلة لهذه المجموعة بعد.")
         return
 
+    grouped = {}
+    order = []
+    for row in rows:
+        key = row["user_id"]
+        if key not in grouped:
+            grouped[key] = {"name": row["name"], "items": []}
+            order.append(key)
+        grouped[key]["items"].append((row["link"], row["description"]))
+
     text = "💻 مشاريع الأعضاء\n━━━━━━━━━━━━━━\n\n"
-    for i, row in enumerate(rows, start=1):
-        text += (
-            f"{i}. {mention_html(row['user_id'], row['name'])}\n"
-            f"🔗 {html.escape(row['link'])}\n"
-            f"📄 {html.escape(row['description'])}\n\n"
-        )
+    for uid in order:
+        entry = grouped[uid]
+        text += f"👤 {mention_html(uid, entry['name'])}\n"
+        for link, description in entry["items"]:
+            text += f"🔗 {html.escape(link)}\n📄 {html.escape(description)}\n\n"
+        text += "\n"
 
     await send_in_same_topic(update, context, text)
+
+async def clear_user_projects(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
+
+    group_id = chat.id
+
+    if not context.args:
+        await reply_same_place(update, "استخدم: /clear_user_projects @username أو user_id")
+        return
+
+    target = context.args[0].strip()
+    target_user_id = None
+    target_name = None
+
+    if target.lstrip("-").isdigit():
+        target_user_id = int(target)
+    elif target.startswith("@"):
+        username = target[1:]
+        try:
+            resolved = await context.bot.get_chat(f"@{username}")
+            target_user_id = resolved.id
+        except Exception:
+            target_user_id = None
+
+        # Fallback: match by stored name if Telegram couldn't resolve the username
+        if target_user_id is None:
+            with db_conn() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    SELECT DISTINCT user_id, name FROM projects
+                    WHERE group_id = ? AND name LIKE ?
+                    """,
+                    (group_id, f"%{username}%"),
+                )
+                match = cur.fetchone()
+            if match:
+                target_user_id = match["user_id"]
+                target_name = match["name"]
+    else:
+        await reply_same_place(update, "صيغة غير صحيحة. استخدم @username أو user_id.")
+        return
+
+    if target_user_id is None:
+        await reply_same_place(update, "ما قدرت ألقى هذا المستخدم.")
+        return
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM projects WHERE group_id = ? AND user_id = ?",
+            (group_id, target_user_id),
+        )
+        deleted_count = cur.rowcount
+        conn.commit()
+
+    if deleted_count:
+        who = target_name or f"user_id {target_user_id}"
+        await reply_same_place(update, f"تم حذف {deleted_count} مشروع لـ {who} 🗑️")
+    else:
+        await reply_same_place(update, "ما في مشاريع مسجلة لهذا المستخدم.")
 
 
 def main():
@@ -1530,6 +1630,7 @@ def main():
     app.add_handler(CommandHandler("clear_reviews", clear_reviews))
     app.add_handler(CommandHandler("project_link", project_link))
     app.add_handler(CommandHandler("show_projects", show_projects))
+    app.add_handler(CommandHandler("clear_user_projects", clear_user_projects))
     # app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
