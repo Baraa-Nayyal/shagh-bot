@@ -185,6 +185,18 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_daily_done_group_date ON daily_done(group_id, done_date)"
         )
 
+        cur.execute("""
+         CREATE TABLE IF NOT EXISTS projects (
+            project_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            group_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            link TEXT NOT NULL,
+            description TEXT NOT NULL,
+            created_at TEXT NOT NULL
+            )
+        """)
+
         conn.commit()
 
 
@@ -1398,6 +1410,91 @@ async def clear_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await reply_same_place(update, "ما في ملاحظات لحذفها.")
 
 
+async def project_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat:
+        return
+
+    group_id = chat.id
+
+    if not get_user_active(group_id, user.id):
+        await reply_same_place(update, "استخدم /register أولاً داخل هذه المجموعة.")
+        return
+
+    if not context.args:
+        await reply_same_place(
+            update,
+            "أرسل الرابط ثم الوصف بعد الأمر، مثال:\n/project_link https://github.com/me/app وصف قصير للمشروع",
+        )
+        return
+
+    link = context.args[0]
+    description = " ".join(context.args[1:]).strip()
+
+    if not description:
+        await reply_same_place(update, "لازم تكتب وصف قصير للمشروع بعد الرابط.")
+        return
+
+    now_iso = datetime.now().isoformat(timespec="seconds")
+    name = user.full_name or user.first_name or "مستخدم"
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO projects (user_id, group_id, name, link, description, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (user.id, group_id, name, link, description, now_iso),
+        )
+        conn.commit()
+
+    await reply_same_place(update, "تم استلام مشروعك بنجاح ✅")
+
+async def show_projects(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
+
+    group_id = chat.id
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT user_id, name, link, description, created_at
+            FROM projects
+            WHERE group_id = ?
+            ORDER BY name COLLATE NOCASE, created_at ASC
+            """,
+            (group_id,),
+        )
+        rows = cur.fetchall()
+
+    if not rows:
+        await reply_same_place(update, "📭 ما في مشاريع مسجلة لهذه المجموعة بعد.")
+        return
+
+    text = "💻 مشاريع الأعضاء\n━━━━━━━━━━━━━━\n\n"
+    for i, row in enumerate(rows, start=1):
+        text += (
+            f"{i}. {mention_html(row['user_id'], row['name'])}\n"
+            f"🔗 {html.escape(row['link'])}\n"
+            f"📄 {html.escape(row['description'])}\n\n"
+        )
+
+    await send_in_same_topic(update, context, text)
+
+
 def main():
     if not TOKEN:
         raise RuntimeError("Set TOKEN environment variable")
@@ -1431,6 +1528,8 @@ def main():
     app.add_handler(CommandHandler("show_reviews", show_reviews))
     app.add_handler(CommandHandler("reveal_reviews", reveal_reviews))   
     app.add_handler(CommandHandler("clear_reviews", clear_reviews))
+    app.add_handler(CommandHandler("project_link", project_link))
+    app.add_handler(CommandHandler("show_projects", show_projects))
     # app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
