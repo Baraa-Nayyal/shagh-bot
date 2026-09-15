@@ -1857,7 +1857,7 @@ def main():
     app.add_handler(CommandHandler("report", report))
     app.add_handler(CommandHandler("promote", promote))
     app.add_handler(CommandHandler("paid", paid))
-    app.add_handler(CommandHandler("`listPay`", list_pay))
+    app.add_handler(CommandHandler("listPay", list_pay))
     app.add_handler(CommandHandler("welcome", welcome_cmd))
     app.add_handler(CommandHandler("study", study))
     app.add_handler(CommandHandler("meeting", meeting))
