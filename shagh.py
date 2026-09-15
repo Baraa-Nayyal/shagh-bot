@@ -43,7 +43,13 @@ def db_conn():
 
 
 def is_admin(user_id: int) -> bool:
-    return user_id in ADMIN_IDS
+    if user_id in ADMIN_IDS:
+        return True
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM extra_admins WHERE user_id = ?", (user_id,))
+        return cur.fetchone() is not None
 
 
 def is_group_chat(update: Update) -> bool:
@@ -195,6 +201,14 @@ def init_db():
             description TEXT NOT NULL,
             created_at TEXT NOT NULL
             )
+        """)
+
+        cur.execute("""
+         CREATE TABLE IF NOT EXISTS extra_admins (
+            user_id INTEGER PRIMARY KEY,
+            added_by INTEGER NOT NULL,
+            added_at TEXT NOT NULL
+            ء)
         """)
 
         conn.commit()
@@ -1408,6 +1422,7 @@ async def clear_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await reply_same_place(update, f"تم حذف {deleted_count} ملاحظة 🗑️")
         else:
             await reply_same_place(update, "ما في ملاحظات لحذفها.")
+
 async def project_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
         return
@@ -1594,6 +1609,61 @@ async def clear_user_projects(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         await reply_same_place(update, "ما في مشاريع مسجلة لهذا المستخدم.")
 
+async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not user or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
+
+    if not context.args or not context.args[0].isdigit():
+        await reply_same_place(update, "استخدم: /add_admin user_id")
+        return
+
+    target_id = int(context.args[0])
+
+    if is_admin(target_id):
+        await reply_same_place(update, "هذا المستخدم أدمن بالفعل.")
+        return
+
+    now_iso = datetime.now().isoformat(timespec="seconds")
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO extra_admins (user_id, added_by, added_at) VALUES (?, ?, ?)",
+            (target_id, user.id, now_iso),
+        )
+        conn.commit()
+
+    await reply_same_place(update, f"تمت إضافة {target_id} كأدمن ✅")
+
+
+async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not user or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
+
+    if not context.args or not context.args[0].isdigit():
+        await reply_same_place(update, "استخدم: /remove_admin user_id")
+        return
+
+    target_id = int(context.args[0])
+
+    if target_id in ADMIN_IDS:
+        await reply_same_place(update, "ما تقدر تحذف أدمن أساسي.")
+        return
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM extra_admins WHERE user_id = ?", (target_id,))
+        deleted_count = cur.rowcount
+        conn.commit()
+
+    if deleted_count:
+        await reply_same_place(update, f"تمت إزالة {target_id} من الأدمن ✅")
+    else:
+        await reply_same_place(update, "هذا المستخدم مو أدمن إضافي.")
 
 def main():
     if not TOKEN:
@@ -1631,6 +1701,8 @@ def main():
     app.add_handler(CommandHandler("project_link", project_link))
     app.add_handler(CommandHandler("show_projects", show_projects))
     app.add_handler(CommandHandler("clear_user_projects", clear_user_projects))
+    app.add_handler(CommandHandler("add_admin", add_admin))
+    app.add_handler(CommandHandler("remove_admin", remove_admin))
     # app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
