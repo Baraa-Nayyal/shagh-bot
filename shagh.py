@@ -208,7 +208,20 @@ def init_db():
             user_id INTEGER PRIMARY KEY,
             added_by INTEGER NOT NULL,
             added_at TEXT NOT NULL
-            ء)
+            )
+        """)
+
+        cur.execute("""
+         CREATE TABLE IF NOT EXISTS teams (
+            team_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER NOT NULL,
+            user1_id INTEGER NOT NULL,
+            user1_name TEXT NOT NULL,
+            user2_id INTEGER NOT NULL,
+            user2_name TEXT NOT NULL,
+            points INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL
+        )
         """)
 
         conn.commit()
@@ -231,6 +244,108 @@ def mark_paid(group_id: int, user_id: int):
         )
         conn.commit()
 
+
+async def resolve_user_arg(context: ContextTypes.DEFAULT_TYPE, group_id: int, arg: str):
+    arg = arg.strip()
+
+    if arg.lstrip("-").isdigit():
+        user_id = int(arg)
+        with db_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT name FROM users WHERE user_id = ? AND group_id = ?",
+                (user_id, group_id),
+            )
+            row = cur.fetchone()
+        return user_id, (row["name"] if row else str(user_id))
+
+    if arg.startswith("@"):
+        username = arg[1:]
+        try:
+            resolved = await context.bot.get_chat(f"@{username}")
+            return resolved.id, (resolved.full_name or resolved.first_name or username)
+        except Exception:
+            pass
+
+        with db_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT user_id, name FROM users WHERE group_id = ? AND name LIKE ?",
+                (group_id, f"%{username}%"),
+            )
+            row = cur.fetchone()
+        if row:
+            return row["user_id"], row["name"]
+
+    return None, None
+
+async def pair(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
+
+    group_id = chat.id
+
+    if len(context.args) < 2:
+        await reply_same_place(update, "استخدم: /pair @user1 @user2")
+        return
+
+    uid1, name1 = await resolve_user_arg(context, group_id, context.args[0])
+    uid2, name2 = await resolve_user_arg(context, group_id, context.args[1])
+
+    if uid1 is None or uid2 is None:
+        await reply_same_place(update, "ما قدرت ألقى أحد المستخدمين.")
+        return
+
+    if uid1 == uid2:
+        await reply_same_place(update, "لازم يكونوا مستخدمين مختلفين.")
+        return
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT team_id FROM teams
+            WHERE group_id = ? AND (user1_id IN (?, ?) OR user2_id IN (?, ?))
+            """,
+            (group_id, uid1, uid2, uid1, uid2),
+        )
+        if cur.fetchone():
+            await reply_same_place(update, "أحد المستخدمين موجود بفريق بالفعل.")
+            return
+
+        now_iso = datetime.now().isoformat(timespec="seconds")
+        cur.execute(
+            """
+            INSERT INTO teams (group_id, user1_id, user1_name, user2_id, user2_name, points, created_at)
+            VALUES (?, ?, ?, ?, ?, 0, ?)
+            """,
+            (group_id, uid1, name1, uid2, name2, now_iso),
+        )
+        conn.commit()
+
+    await reply_same_place(
+        update,
+        f"تم تكوين فريق: {mention_html(uid1, name1)} & {mention_html(uid2, name2)} 🤝",
+    )
+
+def add_team_points(conn, group_id: int, user_id: int, pts: int):
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT team_id FROM teams WHERE group_id = ? AND (user1_id = ? OR user2_id = ?)",
+        (group_id, user_id, user_id),
+    )
+    row = cur.fetchone()
+    if row:
+        cur.execute(
+            "UPDATE teams SET points = points + ? WHERE team_id = ?",
+            (pts, row["team_id"]),
+        )
 
 # async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #     message = update.effective_message
@@ -519,6 +634,8 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "UPDATE users SET points = points + 1 WHERE user_id = ? AND group_id = ?",
                 (user.id, group_id),
             )
+
+        add_team_points(conn, group_id, user.id, 1)
 
         conn.commit()
 
@@ -1206,6 +1323,7 @@ async def log_activity(
                 "UPDATE users SET points = points + ? WHERE user_id = ? AND group_id = ?",
                 (config["points"], user.id, group_id),
             )
+            add_team_points(conn, group_id, user.id, config["points"])
 
         conn.commit()
 
@@ -1665,6 +1783,59 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await reply_same_place(update, "هذا المستخدم مو أدمن إضافي.")
 
+async def checkout_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    chat = update.effective_chat
+    if not chat:
+        return
+
+    group_id = chat.id
+    detailed = bool(context.args) and context.args[0] == "1"
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT team_id, user1_id, user1_name, user2_id, user2_name, points
+            FROM teams
+            WHERE group_id = ?
+            ORDER BY points DESC
+            """,
+            (group_id,),
+        )
+        teams = cur.fetchall()
+
+        user_points = {}
+        if detailed and teams:
+            ids = {t["user1_id"] for t in teams} | {t["user2_id"] for t in teams}
+            placeholders = ",".join("?" for _ in ids)
+            cur.execute(
+                f"SELECT user_id, points FROM users WHERE group_id = ? AND user_id IN ({placeholders})",
+                (group_id, *ids),
+            )
+            user_points = {row["user_id"]: row["points"] for row in cur.fetchall()}
+
+    if not teams:
+        await reply_same_place(update, "ما في فرق مكوّنة بهذه المجموعة بعد.")
+        return
+
+    text = "👥 نقاط الفرق\n━━━━━━━━━━━━━━\n\n"
+    for i, t in enumerate(teams, start=1):
+        text += (
+            f"{i}. {mention_html(t['user1_id'], t['user1_name'])} & "
+            f"{mention_html(t['user2_id'], t['user2_name'])} — {t['points']} نقطة فريق\n"
+        )
+        if detailed:
+            p1 = user_points.get(t["user1_id"], 0)
+            p2 = user_points.get(t["user2_id"], 0)
+            text += f"    • {html.escape(t['user1_name'])}: {p1} نقطة فردية\n"
+            text += f"    • {html.escape(t['user2_name'])}: {p2} نقطة فردية\n"
+        text += "\n"
+
+    await send_in_same_topic(update, context, text)
+
 def main():
     if not TOKEN:
         raise RuntimeError("Set TOKEN environment variable")
@@ -1686,7 +1857,7 @@ def main():
     app.add_handler(CommandHandler("report", report))
     app.add_handler(CommandHandler("promote", promote))
     app.add_handler(CommandHandler("paid", paid))
-    app.add_handler(CommandHandler("listPay", list_pay))
+    app.add_handler(CommandHandler("`listPay`", list_pay))
     app.add_handler(CommandHandler("welcome", welcome_cmd))
     app.add_handler(CommandHandler("study", study))
     app.add_handler(CommandHandler("meeting", meeting))
@@ -1703,6 +1874,8 @@ def main():
     app.add_handler(CommandHandler("clear_user_projects", clear_user_projects))
     app.add_handler(CommandHandler("add_admin", add_admin))
     app.add_handler(CommandHandler("remove_admin", remove_admin))
+    app.add_handler(CommandHandler("pair", pair))
+    app.add_handler(CommandHandler("checkout_teams", checkout_teams))
     # app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
