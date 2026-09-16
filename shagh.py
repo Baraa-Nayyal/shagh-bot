@@ -270,8 +270,12 @@ async def resolve_user_arg(context: ContextTypes.DEFAULT_TYPE, group_id: int, ar
         with db_conn() as conn:
             cur = conn.cursor()
             cur.execute(
-                "SELECT user_id, name FROM users WHERE group_id = ? AND name LIKE ?",
-                (group_id, f"%{username}%"),
+             """
+                SELECT user_id, name
+                FROM users
+                WHERE group_id = ? AND LOWER(username) = LOWER(?)
+             """,
+                (group_id, username),
             )
             row = cur.fetchone()
         if row:
