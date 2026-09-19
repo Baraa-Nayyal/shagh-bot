@@ -1427,22 +1427,50 @@ async def confirm_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def review(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await require_group(update):
-        return
-
     user = update.effective_user
     chat = update.effective_chat
     if not user or not chat:
         return
 
-    group_id = chat.id
-    msg = " ".join(context.args).strip()
-    if not msg:
-        await reply_same_place(update, "اكتب ملاحظتك بعد الأمر، مثال:\n/review الإدارة بطيئة شوي")
+    # Only works in DM with the bot now, not inside a group
+    if chat.type != "private":
+        await reply_same_place(update, "استخدم /review بالخاص مع البوت وليس داخل المجموعة.")
         return
 
+    if len(context.args) < 2:
+        await reply_same_place(
+            update,
+            "استخدم: /review group_id ملاحظتك\nمثال:\n/review -1001234567890 الإدارة بطيئة شوي",
+        )
+        return
+
+    group_arg = context.args[0]
+    if not group_arg.lstrip("-").isdigit():
+        await reply_same_place(update, "رقم المجموعة غير صحيح.")
+        return
+
+    group_id = int(group_arg)
+    msg = " ".join(context.args[1:]).strip()
+
+    if not msg:
+        await reply_same_place(update, "اكتب ملاحظتك بعد رقم المجموعة.")
+        return
+
+    # Confirm the user is actually registered in that group before accepting the review
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT name FROM users WHERE user_id = ? AND group_id = ? AND active = 1",
+            (user.id, group_id),
+        )
+        row = cur.fetchone()
+
+    if not row:
+        await reply_same_place(update, "ما أنت مسجل بهذه المجموعة.")
+        return
+
+    name = row["name"]
     now_iso = datetime.now().isoformat(timespec="seconds")
-    name = user.full_name or user.first_name or "مستخدم"
 
     with db_conn() as conn:
         cur = conn.cursor()
