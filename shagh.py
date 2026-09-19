@@ -1440,7 +1440,7 @@ async def review(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) < 2:
         await reply_same_place(
             update,
-            "استخدم: /review group_id ملاحظتك\nمثال:\n/review -1001234567890 الإدارة بطيئة شوي",
+            "استخدم: /review group_id ملاحظتك\nمثال:\n/review -1001234567890 هذه ملاحظتي وتجربتي",
         )
         return
 
