@@ -1432,7 +1432,7 @@ async def review(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user or not chat:
         return
 
-    # Only works in DM with the bot now, not inside a group
+    # Only works in DM with the bot now, not inside a group test test hello
     if chat.type != "private":
         await reply_same_place(update, "استخدم /review بالخاص مع البوت وليس داخل المجموعة.")
         return
