@@ -337,7 +337,49 @@ async def pair(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update,
         f"تم تكوين فريق: {mention_html(uid1, name1)} & {mention_html(uid2, name2)} 🤝",
     )
+async def unpair(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
 
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
+
+    group_id = chat.id
+
+    if len(context.args) < 1:
+        await reply_same_place(update, "استخدام: /unpair @user1")
+        return
+
+    uid1, name1 = await resolve_user_arg(context, group_id, context.args[0])
+
+    if uid1 is None:
+        await reply_same_place(update, "ما قدرت القى المستخدم.")
+        return
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+        
+        # البحث عن الفريق الذي ينتمي إليه المستخدم
+        cur.execute("""
+            SELECT team_id FROM teams
+            WHERE group_id = ? AND (user1_id = ? OR user2_id = ?)
+        """, (group_id, uid1, uid1))
+        
+        row = cur.fetchone()
+        
+        if not row:
+            await reply_same_place(update, "المستخدم ليس في أي فريق حالياً.")
+            return
+
+        # حذف الفريق وفك الربط نهائياً
+        cur.execute("DELETE FROM teams WHERE team_id = ?", (row["team_id"],))
+        conn.commit()
+
+    await reply_same_place(update, f"تم فك الفريق وإلغاء الربط للمستخدم {mention_html(uid1, name1)} بنجاح 💔.")
+    
 def add_team_points(conn, group_id: int, user_id: int, pts: int):
     cur = conn.cursor()
     cur.execute(
@@ -1908,6 +1950,7 @@ def main():
     app.add_handler(CommandHandler("remove_admin", remove_admin))
     app.add_handler(CommandHandler("pair", pair))
     app.add_handler(CommandHandler("checkout_teams", checkout_teams))
+    app.add_handler(CommandHandler("unpair", unpair))
     # app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     print("Bot is running...")
