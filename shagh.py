@@ -1960,6 +1960,79 @@ async def checkout_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await send_in_same_topic(update, context, text)
 
+  #----------#non baraa code:-----------#
+async def add_team_points_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_group(update):
+        return
+
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, ".للأدمن فقط")
+        return
+
+    # التأكد من إدخال يوزرين مع عدد النقاط
+    if len(context.args) != 3:
+        await reply_same_place(update, "استخدم:\n/addteampoints @username1 @username2 5")
+        return
+
+    u1 = context.args[0].lstrip("@").strip()
+    u2 = context.args[1].lstrip("@").strip()
+
+    try:
+        pts = int(context.args[2])
+    except ValueError:
+        await reply_same_place(update, ".القيمة لازم تكون رقم")
+        return
+
+    with db_conn() as conn:
+        cur = conn.cursor()
+
+        # جلب بيانات العضو الأول
+        cur.execute("SELECT user_id FROM users WHERE group_id = ? AND username = ? AND active = 1", (chat.id, u1))
+        r1 = cur.fetchone()
+
+        # جلب بيانات العضو الثاني
+        cur.execute("SELECT user_id FROM users WHERE group_id = ? AND username = ? AND active = 1", (chat.id, u2))
+        r2 = cur.fetchone()
+
+        if not r1:
+            await reply_same_place(update, f".المستخدم @{u1} غير موجود في هذه المجموعة")
+            return
+        if not r2:
+            await reply_same_place(update, f".المستخدم @{u2} غير موجود في هذه المجموعة")
+            return
+
+        uid1 = r1["user_id"]
+        uid2 = r2["user_id"]
+
+        # التحقق من أن العضوين يشكلان ثنائي في جدول teams
+        cur.execute("""
+            SELECT team_id FROM teams 
+            WHERE group_id = ? AND ((user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?))
+        """, (chat.id, uid1, uid2, uid2, uid1))
+        t_row = cur.fetchone()
+
+        if not t_row:
+            await reply_same_place(update, f".المستخدمان @{u1} و @{u2} ليسا في فريق واحد")
+            return
+
+        t_id = t_row["team_id"]
+
+        # 1. إضافة النقاط لرصيد الفريق
+        cur.execute("UPDATE teams SET points = points + ? WHERE team_id = ?", (pts, t_id))
+
+        # 2. إضافة النقاط لكل شخص في جدول users
+        cur.execute("UPDATE users SET points = points + ? WHERE group_id = ? AND user_id = ?", (pts, chat.id, uid1))
+        cur.execute("UPDATE users SET points = points + ? WHERE group_id = ? AND user_id = ?", (pts, chat.id, uid2))
+
+        conn.commit()
+
+        p1_mention = mention_html(uid1, u1)
+        p2_mention = mention_html(uid2, u2)
+
+        await reply_same_place(update, f"🟢 تم إضافة {pts} نقطة للفريق ({p1_mention} و {p2_mention}) بنجاح ✨")
+
 def main():
     if not TOKEN:
         raise RuntimeError("Set TOKEN environment variable")
@@ -1976,6 +2049,7 @@ def main():
     app.add_handler(CommandHandler("points", points))
     app.add_handler(CommandHandler("updatePoints", update_points))
     app.add_handler(CommandHandler("addPoints", add_points))
+    app.add_handler(CommandHandler("addteampoints", add_team_points_cmd))
     app.add_handler(CommandHandler("warn", warn))
     app.add_handler(CommandHandler("listUsers", list_users))
     app.add_handler(CommandHandler("report", report))
