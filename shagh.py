@@ -270,7 +270,7 @@ async def resolve_user_arg(context: ContextTypes.DEFAULT_TYPE, group_id: int, ar
         with db_conn() as conn:
             cur = conn.cursor()
             cur.execute(
-             """
+                """
                 SELECT user_id, name
                 FROM users
                 WHERE group_id = ? AND LOWER(username) = LOWER(?)
@@ -282,6 +282,7 @@ async def resolve_user_arg(context: ContextTypes.DEFAULT_TYPE, group_id: int, ar
             return row["user_id"], row["name"]
 
     return None, None
+
 
 async def pair(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
@@ -337,6 +338,8 @@ async def pair(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update,
         f"تم تكوين فريق: {mention_html(uid1, name1)} & {mention_html(uid2, name2)} 🤝",
     )
+
+
 async def unpair(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
         return
@@ -361,15 +364,18 @@ async def unpair(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     with db_conn() as conn:
         cur = conn.cursor()
-        
+
         # البحث عن الفريق الذي ينتمي إليه المستخدم
-        cur.execute("""
+        cur.execute(
+            """
             SELECT team_id FROM teams
             WHERE group_id = ? AND (user1_id = ? OR user2_id = ?)
-        """, (group_id, uid1, uid1))
-        
+        """,
+            (group_id, uid1, uid1),
+        )
+
         row = cur.fetchone()
-        
+
         if not row:
             await reply_same_place(update, "المستخدم ليس في أي فريق حالياً.")
             return
@@ -378,8 +384,12 @@ async def unpair(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.execute("DELETE FROM teams WHERE team_id = ?", (row["team_id"],))
         conn.commit()
 
-    await reply_same_place(update, f"تم فك الفريق وإلغاء الربط للمستخدم {mention_html(uid1, name1)} بنجاح 💔.")
-    
+    await reply_same_place(
+        update,
+        f"تم فك الفريق وإلغاء الربط للمستخدم {mention_html(uid1, name1)} بنجاح 💔.",
+    )
+
+
 def add_team_points(conn, group_id: int, user_id: int, pts: int):
     cur = conn.cursor()
     cur.execute(
@@ -392,6 +402,7 @@ def add_team_points(conn, group_id: int, user_id: int, pts: int):
             "UPDATE teams SET points = points + ? WHERE team_id = ?",
             (pts, row["team_id"]),
         )
+
 
 # async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #     message = update.effective_message
@@ -644,47 +655,47 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     time_str = now.strftime("%I:%M %p").lstrip("0")
 
     done_replies = [
-    "ولك شو هيدااا! 😭 مين سمحلك تخلّص قبل الموعد؟!",
-    "يدلييي، خلصنا المهمة! حدا يرنّ عالتلفزيون، عنا خبر عييجييل 😂📢",
-    "يا عيني عالآدمي، قال DONE قال! نحنا بعدنا عم نفكير نبليش 💀",
-    "لك هيدا أنجز ولا عم يجرّب يستفزّنا بنشاطه؟ 😭",
-    "خلصت؟ طيّب استنّى شوي خلّينا نستوعب الصدمة 😂",
-    "ولك شيلوا كلمة «بعدين» من قاموس هالإنسان، ما عاد إلها لزوم 😭👏",
-    "يا لطيف! في حدن عم يطبيق اللي بيقول إنو رح يعملو ؟ شو هالتطوّر هيدا",
-    "هلأ منصديق إنك كنت عم تشتغيل، مش بس فاتح اللابتوب للديكور 💻😭",
-    "تمّ الإنجاز يا جماعة، يرجى عدم الاقتراب من البطل لنستوعيب العظمة",
-    "ولك خلصت المهمة قبل ما ازهق من السؤال عنها؟ هيدي جديدة 😂",
-    "نقطة إلك ووسام صبر إلنا وكاسة متّي عحسابنا 🧉",
-    "يا عيني! لو التسويف بيحكي، كان هللأ عم يبكي شو عمولت انتا ياخطير💀",
-    "مش معقول يكونوا الأدمن مهددينك ؟ 😂",
-    "خلصت المهمة ؟ إي هيك، مش كل شي بدّو اجتماع لجنة تحضيرية 😭",
-    "ولك هيدا DONE ولا إعلان استقلال عن الكسل؟",
-    "يدلي عالإنجاز! بس ما بدي شوفك بعد شوي عم تقول ما عمولت شي اليوم 😌",
-    "ولك شو هالسرعة هيدي؟ عامل اشتراك Premium بالإنجازات؟ 💀",
-    "DONE وصلت لعندنا ومعها ريحة طالب قرّر ياخد مستقبله بجدّية 😭",
-    "هيدا الإنجاز بدّو زفّة، بس الميزانية حالياً نقطة وحدة 😂🎺",
-    "يا حرام التسويف، كان مفكّر إنو بعد عندو فرصة معك 💔",
-    "خلصت المهمة؟ روح اشرب مي، مشان ما ينشف مخّك من كتر الإنتاجية 😭",
-    "شغوف شهد، شغوف سجّل، وشغوف عم يتساءل إذا انتا نفس الشخص اللي كان بيأجّل مبارح",
-    "يا عيني عالإنجازات اللي بتجي بلا ضجّي بس بتعمل فرق كبير",
-    "ولك كل هيدا من دون ما نبعتلك «وين وصلت؟» تطوّر تاريخي 😭",
-    "المهمة خلصت بنجاح، أمّا الاحتفال فمعلّق لحدّيت ما نخليص باقي المهام 💀",
-    "خلصت؟ لك روح خبير رفقاتك، يمكن العدوى الإيجابية تنتشر شوي 🤏🏻",
-    "يا سلام! هيكي منحبّ نشوف ال DONE مش DONE كلام بس 😭💙",
-    "لك دخيلك خلّصنا، بعد في مهام نلحقها قبل ما يصير بكرا 😭",
-    "ولك لك لك، روّق علينا شوي، مش هيك الإنجازات دفعة وحدة 😂",
-    "يا خيي ريّحنا شوي، عم تخلّينا نحسّ إنو نحنا اللي مقصّرين 😂"
-]
+        "ولك شو هيدااا! 😭 مين سمحلك تخلّص قبل الموعد؟!",
+        "يدلييي، خلصنا المهمة! حدا يرنّ عالتلفزيون، عنا خبر عييجييل 😂📢",
+        "يا عيني عالآدمي، قال DONE قال! نحنا بعدنا عم نفكير نبليش 💀",
+        "لك هيدا أنجز ولا عم يجرّب يستفزّنا بنشاطه؟ 😭",
+        "خلصت؟ طيّب استنّى شوي خلّينا نستوعب الصدمة 😂",
+        "ولك شيلوا كلمة «بعدين» من قاموس هالإنسان، ما عاد إلها لزوم 😭👏",
+        "يا لطيف! في حدن عم يطبيق اللي بيقول إنو رح يعملو ؟ شو هالتطوّر هيدا",
+        "هلأ منصديق إنك كنت عم تشتغيل، مش بس فاتح اللابتوب للديكور 💻😭",
+        "تمّ الإنجاز يا جماعة، يرجى عدم الاقتراب من البطل لنستوعيب العظمة",
+        "ولك خلصت المهمة قبل ما ازهق من السؤال عنها؟ هيدي جديدة 😂",
+        "نقطة إلك ووسام صبر إلنا وكاسة متّي عحسابنا 🧉",
+        "يا عيني! لو التسويف بيحكي، كان هللأ عم يبكي شو عمولت انتا ياخطير💀",
+        "مش معقول يكونوا الأدمن مهددينك ؟ 😂",
+        "خلصت المهمة ؟ إي هيك، مش كل شي بدّو اجتماع لجنة تحضيرية 😭",
+        "ولك هيدا DONE ولا إعلان استقلال عن الكسل؟",
+        "يدلي عالإنجاز! بس ما بدي شوفك بعد شوي عم تقول ما عمولت شي اليوم 😌",
+        "ولك شو هالسرعة هيدي؟ عامل اشتراك Premium بالإنجازات؟ 💀",
+        "DONE وصلت لعندنا ومعها ريحة طالب قرّر ياخد مستقبله بجدّية 😭",
+        "هيدا الإنجاز بدّو زفّة، بس الميزانية حالياً نقطة وحدة 😂🎺",
+        "يا حرام التسويف، كان مفكّر إنو بعد عندو فرصة معك 💔",
+        "خلصت المهمة؟ روح اشرب مي، مشان ما ينشف مخّك من كتر الإنتاجية 😭",
+        "شغوف شهد، شغوف سجّل، وشغوف عم يتساءل إذا انتا نفس الشخص اللي كان بيأجّل مبارح",
+        "يا عيني عالإنجازات اللي بتجي بلا ضجّي بس بتعمل فرق كبير",
+        "ولك كل هيدا من دون ما نبعتلك «وين وصلت؟» تطوّر تاريخي 😭",
+        "المهمة خلصت بنجاح، أمّا الاحتفال فمعلّق لحدّيت ما نخليص باقي المهام 💀",
+        "خلصت؟ لك روح خبير رفقاتك، يمكن العدوى الإيجابية تنتشر شوي 🤏🏻",
+        "يا سلام! هيكي منحبّ نشوف ال DONE مش DONE كلام بس 😭💙",
+        "لك دخيلك خلّصنا، بعد في مهام نلحقها قبل ما يصير بكرا 😭",
+        "ولك لك لك، روّق علينا شوي، مش هيك الإنجازات دفعة وحدة 😂",
+        "يا خيي ريّحنا شوي، عم تخلّينا نحسّ إنو نحنا اللي مقصّرين 😂",
+    ]
 
-with db_conn() as conn:
+    with db_conn() as conn:
         cur = conn.cursor()
 
         cur.execute(
             """
-            SELECT 1
-            FROM daily_done
-            WHERE user_id = ? AND group_id = ? AND done_date = ?
-            """,
+                SELECT 1
+                FROM daily_done
+                WHERE user_id = ? AND group_id = ? AND done_date = ?
+                """,
             (user.id, group_id, today),
         )
 
@@ -692,13 +703,13 @@ with db_conn() as conn:
 
         cur.execute(
             """
-            INSERT INTO daily_done (user_id, group_id, done_date, message, done_time, done_time_iso)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(user_id, group_id, done_date) DO UPDATE SET
-                message = excluded.message,
-                done_time = excluded.done_time,
-                done_time_iso = excluded.done_time_iso
-            """,
+                INSERT INTO daily_done (user_id, group_id, done_date, message, done_time, done_time_iso)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, group_id, done_date) DO UPDATE SET
+                    message = excluded.message,
+                    done_time = excluded.done_time,
+                    done_time_iso = excluded.done_time_iso
+                """,
             (user.id, group_id, today, msg, time_str, now_iso),
         )
 
@@ -708,14 +719,14 @@ with db_conn() as conn:
                 (user.id, group_id),
             )
 
-        add_team_points(conn, group_id, user.id, 1)
+    add_team_points(conn, group_id, user.id, 1)
 
-        conn.commit()
+    conn.commit()
 
-        if already_done:
-            await reply_same_place(update, "تم تحديث الإنجاز بنجاح ✅")
-        else:
-            await reply_same_place(update, random.choice(done_replies))
+    if already_done:
+        await reply_same_place(update, "تم تحديث الإنجاز بنجاح ✅")
+    else:
+        await reply_same_place(update, random.choice(done_replies))
 
 
 async def alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1305,29 +1316,29 @@ ACTIVITY_CONFIG = {
         "no_message": "اكتب وش درست بعد الأمر.",
         "already_done": "تم تحديث نشاط الدراسة بنجاح ✅",
         "replies": [
-        "ولك فتحت الكتاب بإرادتك؟ 😭 مين انتا وشو عمولت بالطالب الأصلي؟",
-        "يدلي عالدراسة! صار فينا نطمّن عالجيل الصاعد شوي 😂📚",
-        "يا لطيف، الطالب عم يدرس قبل ما ينزنيق بالامتحان هيدي بدها توثيق تاريخي 💀",
-        "شو هيدا؟ جلسة دراسة بلا مفاوضات مع النفس؟ 😭",
-        "ولك الكتاب ما عضّك صح؟ خبرنا كيف كانت التجربة 😂",
-        "يا عاايني اليوم درست وبكرا بتفهم، وبعده بتصير تشرح لغيراك وتقولن سهلة كتير 😂",
-        "درست؟ إي هيك، خلّي مخّك يشتغل شوبينا ولاو بدل ما يضلّ فاتح عشرين تبويب بلا فايدة 😭",
-        "ياعيني عليك ، المعلومات فاتت مخك بس انت مأكد انها بقيت فيو ؟",
-        "مين الي قلك مين ؟ مين الي قلك مين انو الدراسة بدها مزاج ؟ لو ناطرين المزاج كان بعمرنا ما عملنا شي💀",
-        "نقطة دراسة جديدي شغوف ما بيطلب منك تصير اينشتاين بيوم، بس ضلّك عم تتقدّم 💙",
-        "ولك شو هالتركيز هيدا ؟ حتى إشعارات الموبايل صارت تحسّ بالذنب 📵😭",
-        "يا عيني عالطالب اللي بيحارب النعس والمعادلات بنفس الوقت 😭",
-        "شغوف بيحب يخبرك : ما بدنا بطولات يوم واحد، بدنا طالب ما بيختفي بعد أول محاضرة 😂",
-        "هيدا الحكي! شوي شوي بتتراكم المعلومات، مو متل الغسيل اللي بيتراكم فجأة 😭😔",
-        "لو درست مدة قليلة ممتاز، في ناس صارلن نص ساعة عم يختاروا أي موسيقى يدرسوا عليها 😂",
-        "اليوم انتا والكتاب أصحاب بكرا منشوف إذا بتضلّ العلاقة مستئرّة وقت الامتحان 😭",
-        "ولك لا تدرس لتخلّص وبس، ادرس لتفهم… إي بعرف، صارت حكمة فجأة 😌",
-        "يا عيني، عم تدرس حتى لو ما عندك نفس. هيدي العادة اللي بتعمل فرق عنجد 💙",
-        "الدراسة ماشية، والنقاط عم تزيد، وبقي بس نخفّف شوي من علاقتنا السامّة مع التأجيل 💀",
-        "ولك استمرّ! بدنا نشوفك عم تتطوّر، مش بس عم تجمع نقاط وتنافس حالك عالترتيب 😂🏆",
-        "ولك عَ مهلك علينا، شو هالهمّة 😭",
-        "لك دخيلك خلّصنا، بعد في مهام نلحقها قبل ما يصير بكرا 😭"
-    ],
+            "ولك فتحت الكتاب بإرادتك؟ 😭 مين انتا وشو عمولت بالطالب الأصلي؟",
+            "يدلي عالدراسة! صار فينا نطمّن عالجيل الصاعد شوي 😂📚",
+            "يا لطيف، الطالب عم يدرس قبل ما ينزنيق بالامتحان هيدي بدها توثيق تاريخي 💀",
+            "شو هيدا؟ جلسة دراسة بلا مفاوضات مع النفس؟ 😭",
+            "ولك الكتاب ما عضّك صح؟ خبرنا كيف كانت التجربة 😂",
+            "يا عاايني اليوم درست وبكرا بتفهم، وبعده بتصير تشرح لغيراك وتقولن سهلة كتير 😂",
+            "درست؟ إي هيك، خلّي مخّك يشتغل شوبينا ولاو بدل ما يضلّ فاتح عشرين تبويب بلا فايدة 😭",
+            "ياعيني عليك ، المعلومات فاتت مخك بس انت مأكد انها بقيت فيو ؟",
+            "مين الي قلك مين ؟ مين الي قلك مين انو الدراسة بدها مزاج ؟ لو ناطرين المزاج كان بعمرنا ما عملنا شي💀",
+            "نقطة دراسة جديدي شغوف ما بيطلب منك تصير اينشتاين بيوم، بس ضلّك عم تتقدّم 💙",
+            "ولك شو هالتركيز هيدا ؟ حتى إشعارات الموبايل صارت تحسّ بالذنب 📵😭",
+            "يا عيني عالطالب اللي بيحارب النعس والمعادلات بنفس الوقت 😭",
+            "شغوف بيحب يخبرك : ما بدنا بطولات يوم واحد، بدنا طالب ما بيختفي بعد أول محاضرة 😂",
+            "هيدا الحكي! شوي شوي بتتراكم المعلومات، مو متل الغسيل اللي بيتراكم فجأة 😭😔",
+            "لو درست مدة قليلة ممتاز، في ناس صارلن نص ساعة عم يختاروا أي موسيقى يدرسوا عليها 😂",
+            "اليوم انتا والكتاب أصحاب بكرا منشوف إذا بتضلّ العلاقة مستئرّة وقت الامتحان 😭",
+            "ولك لا تدرس لتخلّص وبس، ادرس لتفهم… إي بعرف، صارت حكمة فجأة 😌",
+            "يا عيني، عم تدرس حتى لو ما عندك نفس. هيدي العادة اللي بتعمل فرق عنجد 💙",
+            "الدراسة ماشية، والنقاط عم تزيد، وبقي بس نخفّف شوي من علاقتنا السامّة مع التأجيل 💀",
+            "ولك استمرّ! بدنا نشوفك عم تتطوّر، مش بس عم تجمع نقاط وتنافس حالك عالترتيب 😂🏆",
+            "ولك عَ مهلك علينا، شو هالهمّة 😭",
+            "لك دخيلك خلّصنا، بعد في مهام نلحقها قبل ما يصير بكرا 😭",
+        ],
     },
     "meeting": {
         "points": 3,
@@ -1335,20 +1346,20 @@ ACTIVITY_CONFIG = {
         "no_message": "اكتب تفاصيل الاجتماع بعد الأمر.",
         "already_done": "تم تحديث الاجتماع بنجاح ✅",
         "replies": [
-        "ولك حضرت الاجتماع؟ 😭 مين انتاا وشو عملت باللي كان يقول «بشوف التسجيل بعدين»؟",
-        "يا لطيف! الكل فات عالاجتماع؟ شكله اليوم في شي تاريخي رح يصير 😂",
-        "الاجتماع خلص؟ ولك بعدني ما لحقت قول «مسا الخير» 😂",
-        "يا ويلي حدن سأل سؤال بالاجتماع؟ سجّلوا التاريخ، في تفاعل بالدفعة 😭",
-        "ولك هيدا اجتماع ولا حلقة من مسلسل؟",
-        "حضرت الاجتماع وسكّرت؟ طيب خبرنا، فهمت شي ولا بدنا نعيد الحلقة من الأول؟",
-        "يا عيني عالاجتماع المرتّب، ناقصنا بس نوزّع منائيش بعده 🥙",
-        "يا دلي عالحضور، حتى الإنترنت قرّر يتعاون معنا اليوم 🤝😂",
-        "يا لطيف ! حدن دوّن الملاحظات؟ دخيلكن ابعتولنا ياها قبل ما تصير آثار تاريخية 💀📜",
-        "ولك هيدا الحماس بالاجتماع بدّو متابعة، ما بدنا الحماس يفلّ مع زرّ ال Leave 😭",
-        "وين كنت ؟ الكوتش صار بالموضوع التالت وانتا بعدك عم تجرب تفوت عاللينك 😭",
-        "هيدا انتا الي فتت وفلّيت ورجعت فتت عم تحضر الاجتماع ولا عم تعمول زيارة تفقدية؟ 😂",
-        "يا عيني عالطالب اللي دوّن الملاحظات، هلّأ صار المرجع الرسمي للدفعة 😭📜"
-    ],
+            "ولك حضرت الاجتماع؟ 😭 مين انتاا وشو عملت باللي كان يقول «بشوف التسجيل بعدين»؟",
+            "يا لطيف! الكل فات عالاجتماع؟ شكله اليوم في شي تاريخي رح يصير 😂",
+            "الاجتماع خلص؟ ولك بعدني ما لحقت قول «مسا الخير» 😂",
+            "يا ويلي حدن سأل سؤال بالاجتماع؟ سجّلوا التاريخ، في تفاعل بالدفعة 😭",
+            "ولك هيدا اجتماع ولا حلقة من مسلسل؟",
+            "حضرت الاجتماع وسكّرت؟ طيب خبرنا، فهمت شي ولا بدنا نعيد الحلقة من الأول؟",
+            "يا عيني عالاجتماع المرتّب، ناقصنا بس نوزّع منائيش بعده 🥙",
+            "يا دلي عالحضور، حتى الإنترنت قرّر يتعاون معنا اليوم 🤝😂",
+            "يا لطيف ! حدن دوّن الملاحظات؟ دخيلكن ابعتولنا ياها قبل ما تصير آثار تاريخية 💀📜",
+            "ولك هيدا الحماس بالاجتماع بدّو متابعة، ما بدنا الحماس يفلّ مع زرّ ال Leave 😭",
+            "وين كنت ؟ الكوتش صار بالموضوع التالت وانتا بعدك عم تجرب تفوت عاللينك 😭",
+            "هيدا انتا الي فتت وفلّيت ورجعت فتت عم تحضر الاجتماع ولا عم تعمول زيارة تفقدية؟ 😂",
+            "يا عيني عالطالب اللي دوّن الملاحظات، هلّأ صار المرجع الرسمي للدفعة 😭📜",
+        ],
     },
     "project": {
         "points": 5,
@@ -1356,32 +1367,32 @@ ACTIVITY_CONFIG = {
         "no_message": "اكتب تفاصيل المشروع بعد الأمر.",
         "already_done": "تم تحديث المشروع بنجاح ✅",
         "replies": [
-        "ولك شو هيدااا! 😭 المشروع خلص؟ حدا يقرصني، شكلي عم بحلم!",
-        "يا لطيف يا لطيف! خمس نقاط دفعة وحدة؟ شغوف بدّو يفلّس هيك 😂💸",
-        "ولك دخيل هالإبداع! شو هالمشروع اللي طالع من تحت إيديك؟ 👀",
-        "يا عيني عالشغل الحلو ، بلّش بفكرة وخلص بمشروع! نحنا بعدنا عم نختار اسم الفولدر 💀",
-        "ولك المشروع اشتغل من أوّل مرّة؟ أكيد في شي مخبّى 😭",
-        "يا ويلي عال bugs، شكلهن اليوم رح يناموا زعلانين 😂🐛",
-        "خلص المشروع؟ طب شو هيدا، ما بدّك تعملنا شي درامي وتحكيلنا عن معاناتك مع الكود؟ 😭",
-        "دخيلك خبرنا، كم مرّة كتبت الكود ومسحتو ورجعت كتبتو؟ بدنا الحقيقة 😂",
-        "صار عنا مشروع جديد يدلي حدا يتّصل بالإعلام، شغوف عم يخرّج مبرمجين 😭📢",
-        "المشروع اشتغل؟ إي خلص اليوم مننام وضميرنا مرتاح، بكرا منكتشف ال bugs الجديدة 💀",
-        "يا لطيف! خمس نقاط عالحساب، ناقصنا بس نحطّلن فايدة بالبنك 😂",
-        "شو هالهمّة هيدي ؟ كنت مفكّرك عم تتفرّج عالكود، طلعت عم تبني المشروع فعلا 😭",
-        "رفعت المشروع عال GitHub؟ يعني صار عندك دليل إنك ما كنت عم تكبّس عالفاضي",
-        "خلص المشروع؟ إي هلقأ فيك تقول «كان سهل» بعد ما قضيت عليه تلات ليالي 😂",
-        "والله وصرت تعمول مشاريع؟ طيب من هلأ إذا خرب شي بالبوت منعرف مين ننادي 😂",
-        "يا ويلي! المشروع خلص قبل ما يخلص صبرنا نحنا 😭",
-        "هيدا الشغل ولا بلاش! بس بالله عليك ما تسمّيه project2-final-final 😂",
-        "المشروع صار حقيقة، مش بس فكرة مكتوبة بالنوتس من شهر آب 💀",
-        "ولك هال bugs وين راحوا؟ لا يكونوا عم يخطّطوا لانتقام جماعي 😭🐛",
-        "يا خيي شو هالإنجاز! صرت تخلّص شغلات قبل ما يصير عندك ضمير يعذبك؟",
-        "لااااا، مش معقول! هيدا خلّص المهمّة قبل ما الأدمن يبعثله تهديد مبطّن 😭",
-        "يا ويلي خلصت المشروع طيب مين رح يضلّ يعطينا أعذار هلأ؟ 😂",
-        "خيي إذا بتضلّ هيك، رح نبلّش نشكّ إنك عامل بوت ينجز عنك 🤨😭",
-        "يا خيي، المشروع إلك، والتعب إلك، وال bug اللي رح يطلع بعد التسليم إلك كمان 😂",
-        "يا لطيف الطالب أنجز! حدا يخبّي الخبر عن رفقاتو ما بدنا نعمول أزمة ثقة بالدفعة 😂"
-    ],
+            "ولك شو هيدااا! 😭 المشروع خلص؟ حدا يقرصني، شكلي عم بحلم!",
+            "يا لطيف يا لطيف! خمس نقاط دفعة وحدة؟ شغوف بدّو يفلّس هيك 😂💸",
+            "ولك دخيل هالإبداع! شو هالمشروع اللي طالع من تحت إيديك؟ 👀",
+            "يا عيني عالشغل الحلو ، بلّش بفكرة وخلص بمشروع! نحنا بعدنا عم نختار اسم الفولدر 💀",
+            "ولك المشروع اشتغل من أوّل مرّة؟ أكيد في شي مخبّى 😭",
+            "يا ويلي عال bugs، شكلهن اليوم رح يناموا زعلانين 😂🐛",
+            "خلص المشروع؟ طب شو هيدا، ما بدّك تعملنا شي درامي وتحكيلنا عن معاناتك مع الكود؟ 😭",
+            "دخيلك خبرنا، كم مرّة كتبت الكود ومسحتو ورجعت كتبتو؟ بدنا الحقيقة 😂",
+            "صار عنا مشروع جديد يدلي حدا يتّصل بالإعلام، شغوف عم يخرّج مبرمجين 😭📢",
+            "المشروع اشتغل؟ إي خلص اليوم مننام وضميرنا مرتاح، بكرا منكتشف ال bugs الجديدة 💀",
+            "يا لطيف! خمس نقاط عالحساب، ناقصنا بس نحطّلن فايدة بالبنك 😂",
+            "شو هالهمّة هيدي ؟ كنت مفكّرك عم تتفرّج عالكود، طلعت عم تبني المشروع فعلا 😭",
+            "رفعت المشروع عال GitHub؟ يعني صار عندك دليل إنك ما كنت عم تكبّس عالفاضي",
+            "خلص المشروع؟ إي هلقأ فيك تقول «كان سهل» بعد ما قضيت عليه تلات ليالي 😂",
+            "والله وصرت تعمول مشاريع؟ طيب من هلأ إذا خرب شي بالبوت منعرف مين ننادي 😂",
+            "يا ويلي! المشروع خلص قبل ما يخلص صبرنا نحنا 😭",
+            "هيدا الشغل ولا بلاش! بس بالله عليك ما تسمّيه project2-final-final 😂",
+            "المشروع صار حقيقة، مش بس فكرة مكتوبة بالنوتس من شهر آب 💀",
+            "ولك هال bugs وين راحوا؟ لا يكونوا عم يخطّطوا لانتقام جماعي 😭🐛",
+            "يا خيي شو هالإنجاز! صرت تخلّص شغلات قبل ما يصير عندك ضمير يعذبك؟",
+            "لااااا، مش معقول! هيدا خلّص المهمّة قبل ما الأدمن يبعثله تهديد مبطّن 😭",
+            "يا ويلي خلصت المشروع طيب مين رح يضلّ يعطينا أعذار هلأ؟ 😂",
+            "خيي إذا بتضلّ هيك، رح نبلّش نشكّ إنك عامل بوت ينجز عنك 🤨😭",
+            "يا خيي، المشروع إلك، والتعب إلك، وال bug اللي رح يطلع بعد التسليم إلك كمان 😂",
+            "يا لطيف الطالب أنجز! حدا يخبّي الخبر عن رفقاتو ما بدنا نعمول أزمة ثقة بالدفعة 😂",
+        ],
     },
 }
 
@@ -1557,7 +1568,9 @@ async def review(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Only works in DM with the bot now, not inside a group test test test
     if chat.type != "private":
-        await reply_same_place(update, "استخدم /review بالخاص مع البوت وليس داخل المجموعة.")
+        await reply_same_place(
+            update, "استخدم /review بالخاص مع البوت وليس داخل المجموعة."
+        )
         return
 
     if len(context.args) < 2:
@@ -1608,6 +1621,7 @@ async def review(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await reply_same_place(update, "تم استلام ملاحظتك، شكرًا لك 🙏")
 
+
 async def show_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
         return
@@ -1635,7 +1649,6 @@ async def show_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"🔸 {i}. {html.escape(row['message'])}\n\n"
 
     await send_in_same_topic(update, context, text)
-
 
 
 async def reveal_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1673,28 +1686,30 @@ async def reveal_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await send_in_same_topic(update, context, text)
 
+
 async def clear_reviews(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await require_group(update):
-            return
+    if not await require_group(update):
+        return
 
-        user = update.effective_user
-        chat = update.effective_chat
-        if not user or not chat or not is_admin(user.id):
-            await reply_same_place(update, "للأدمن فقط.")
-            return
+    user = update.effective_user
+    chat = update.effective_chat
+    if not user or not chat or not is_admin(user.id):
+        await reply_same_place(update, "للأدمن فقط.")
+        return
 
-        group_id = chat.id
+    group_id = chat.id
 
-        with db_conn() as conn:
-            cur = conn.cursor()
-            cur.execute("DELETE FROM reviews WHERE group_id = ?", (group_id,))
-            deleted_count = cur.rowcount
-            conn.commit()
+    with db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM reviews WHERE group_id = ?", (group_id,))
+        deleted_count = cur.rowcount
+        conn.commit()
 
-        if deleted_count:
-            await reply_same_place(update, f"تم حذف {deleted_count} ملاحظة 🗑️")
-        else:
-            await reply_same_place(update, "ما في ملاحظات لحذفها.")
+    if deleted_count:
+        await reply_same_place(update, f"تم حذف {deleted_count} ملاحظة 🗑️")
+    else:
+        await reply_same_place(update, "ما في ملاحظات لحذفها.")
+
 
 async def project_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
@@ -1746,7 +1761,9 @@ async def project_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rows_to_insert.append((user.id, group_id, name, link, description, now_iso))
 
     if not rows_to_insert:
-        await reply_same_place(update, "ما قدرت أفهم أي سطر، تأكد من كتابة الرابط ثم الوصف بكل سطر.")
+        await reply_same_place(
+            update, "ما قدرت أفهم أي سطر، تأكد من كتابة الرابط ثم الوصف بكل سطر."
+        )
         return
 
     with db_conn() as conn:
@@ -1765,6 +1782,7 @@ async def project_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply += f"\n(تم تجاهل {skipped} سطر لعدم وضوح الرابط أو الوصف)"
 
     await reply_same_place(update, reply)
+
 
 async def show_projects(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
@@ -1814,6 +1832,7 @@ async def show_projects(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await send_in_same_topic(update, context, text)
 
+
 async def clear_user_projects(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
         return
@@ -1827,7 +1846,9 @@ async def clear_user_projects(update: Update, context: ContextTypes.DEFAULT_TYPE
     group_id = chat.id
 
     if not context.args:
-        await reply_same_place(update, "استخدم: /clear_user_projects @username أو user_id")
+        await reply_same_place(
+            update, "استخدم: /clear_user_projects @username أو user_id"
+        )
         return
 
     target = context.args[0].strip()
@@ -1881,6 +1902,7 @@ async def clear_user_projects(update: Update, context: ContextTypes.DEFAULT_TYPE
         await reply_same_place(update, f"تم حذف {deleted_count} مشروع لـ {who} 🗑️")
     else:
         await reply_same_place(update, "ما في مشاريع مسجلة لهذا المستخدم.")
+
 
 async def add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -1938,6 +1960,7 @@ async def remove_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await reply_same_place(update, "هذا المستخدم مو أدمن إضافي.")
 
+
 async def checkout_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
         return
@@ -1991,7 +2014,8 @@ async def checkout_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await send_in_same_topic(update, context, text)
 
-  #----------#non baraa code:-----------#
+
+# ----------#non baraa code:-----------#
 async def add_team_points_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
         return
@@ -2004,7 +2028,9 @@ async def add_team_points_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # التأكد من إدخال يوزرين مع عدد النقاط
     if len(context.args) != 3:
-        await reply_same_place(update, "استخدم:\n/addteampoints @username1 @username2 5")
+        await reply_same_place(
+            update, "استخدم:\n/addteampoints @username1 @username2 5"
+        )
         return
 
     u1 = context.args[0].lstrip("@").strip()
@@ -2020,11 +2046,17 @@ async def add_team_points_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
         cur = conn.cursor()
 
         # جلب بيانات العضو الأول
-        cur.execute("SELECT user_id FROM users WHERE group_id = ? AND username = ? AND active = 1", (chat.id, u1))
+        cur.execute(
+            "SELECT user_id FROM users WHERE group_id = ? AND username = ? AND active = 1",
+            (chat.id, u1),
+        )
         r1 = cur.fetchone()
 
         # جلب بيانات العضو الثاني
-        cur.execute("SELECT user_id FROM users WHERE group_id = ? AND username = ? AND active = 1", (chat.id, u2))
+        cur.execute(
+            "SELECT user_id FROM users WHERE group_id = ? AND username = ? AND active = 1",
+            (chat.id, u2),
+        )
         r2 = cur.fetchone()
 
         if not r1:
@@ -2038,31 +2070,48 @@ async def add_team_points_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE
         uid2 = r2["user_id"]
 
         # التحقق من أن العضوين يشكلان ثنائي في جدول teams
-        cur.execute("""
+        cur.execute(
+            """
             SELECT team_id FROM teams 
             WHERE group_id = ? AND ((user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?))
-        """, (chat.id, uid1, uid2, uid2, uid1))
+        """,
+            (chat.id, uid1, uid2, uid2, uid1),
+        )
         t_row = cur.fetchone()
 
         if not t_row:
-            await reply_same_place(update, f".المستخدمان @{u1} و @{u2} ليسا في فريق واحد")
+            await reply_same_place(
+                update, f".المستخدمان @{u1} و @{u2} ليسا في فريق واحد"
+            )
             return
 
         t_id = t_row["team_id"]
 
         # 1. إضافة النقاط لرصيد الفريق
-        cur.execute("UPDATE teams SET points = points + ? WHERE team_id = ?", (pts, t_id))
+        cur.execute(
+            "UPDATE teams SET points = points + ? WHERE team_id = ?", (pts, t_id)
+        )
 
         # 2. إضافة النقاط لكل شخص في جدول users
-        cur.execute("UPDATE users SET points = points + ? WHERE group_id = ? AND user_id = ?", (pts, chat.id, uid1))
-        cur.execute("UPDATE users SET points = points + ? WHERE group_id = ? AND user_id = ?", (pts, chat.id, uid2))
+        cur.execute(
+            "UPDATE users SET points = points + ? WHERE group_id = ? AND user_id = ?",
+            (pts, chat.id, uid1),
+        )
+        cur.execute(
+            "UPDATE users SET points = points + ? WHERE group_id = ? AND user_id = ?",
+            (pts, chat.id, uid2),
+        )
 
         conn.commit()
 
         p1_mention = mention_html(uid1, u1)
         p2_mention = mention_html(uid2, u2)
 
-        await reply_same_place(update, f"🟢 تم إضافة {pts} نقطة للفريق ({p1_mention} و {p2_mention}) بنجاح ✨")
+        await reply_same_place(
+            update,
+            f"🟢 تم إضافة {pts} نقطة للفريق ({p1_mention} و {p2_mention}) بنجاح ✨",
+        )
+
 
 def main():
     if not TOKEN:
@@ -2096,7 +2145,7 @@ def main():
     app.add_handler(CommandHandler("confirm_reset", confirm_reset))
     app.add_handler(CommandHandler("review", review))
     app.add_handler(CommandHandler("show_reviews", show_reviews))
-    app.add_handler(CommandHandler("reveal_reviews", reveal_reviews))   
+    app.add_handler(CommandHandler("reveal_reviews", reveal_reviews))
     app.add_handler(CommandHandler("clear_reviews", clear_reviews))
     app.add_handler(CommandHandler("project_link", project_link))
     app.add_handler(CommandHandler("show_projects", show_projects))
