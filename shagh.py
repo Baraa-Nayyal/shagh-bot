@@ -642,7 +642,8 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = str(date.today())
     now = datetime.now()
     time_str = now.strftime("%I:%M %p").lstrip("0")
-done_replies = [
+
+    done_replies = [
     "ولك شو هيدااا! 😭 مين سمحلك تخلّص قبل الموعد؟!",
     "يدلييي، خلصنا المهمة! حدا يرنّ عالتلفزيون، عنا خبر عييجييل 😂📢",
     "يا عيني عالآدمي، قال DONE قال! نحنا بعدنا عم نفكير نبليش 💀",
@@ -711,10 +712,10 @@ with db_conn() as conn:
 
         conn.commit()
 
-if already_done:
-        await reply_same_place(update, "تم تحديث الإنجاز بنجاح ✅")
-else:
-        await reply_same_place(update, random.choice(done_replies))
+        if already_done:
+            await reply_same_place(update, "تم تحديث الإنجاز بنجاح ✅")
+        else:
+            await reply_same_place(update, random.choice(done_replies))
 
 
 async def alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
