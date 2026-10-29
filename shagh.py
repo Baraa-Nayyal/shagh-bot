@@ -1136,7 +1136,7 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     replied_user = message.reply_to_message.from_user
     if replied_user and replied_user.is_bot:
         await message.reply_text(
-            "انت فهيم شي؟ 😏 بدك انفذ تبليغ على حالي؟ بتحلم 🤣🤣🔥🤡"
+            "انت فهيم شي؟ 😏 بدك انفذ تبليغ على حالي؟ بتحلم 🤣🔥🤡"
         )
 
 
