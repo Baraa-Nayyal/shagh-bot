@@ -1226,7 +1226,7 @@ async def promote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = f"@{target.username}" if target.username else target.first_name
 
     text = f"""
-    🏅 إشادة برمجية مستحقة
+     إشادة برمجية مستحقة
 
     يسرّنا منح المستخدم {username} لقب
     💻 سيد الأكواد وحلّال المسائل 💻
