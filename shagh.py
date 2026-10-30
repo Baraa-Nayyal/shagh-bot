@@ -653,6 +653,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = str(date.today())
     now = datetime.now()
     time_str = now.strftime("%I:%M %p").lstrip("0")
+    now_iso = now.isoformat(timespec="seconds")
 
     done_replies = [
         "ولك شو هيدااا! 😭 مين سمحلك تخلّص قبل الموعد؟!",
